@@ -42,7 +42,7 @@ def worker_init_fn(worker_id):
    np.random.seed(base_seed + worker_id)
 
 
-def dataLoader(config, dataset='syn', warp_input=False, train=True, val=True):
+def dataLoader(config, proxy, proxy_isp_dataset, dataset='syn', warp_input=False, train=True, val=True):
     import torchvision.transforms as transforms
     training_params = config.get('training', {})
     workers_train = training_params.get('workers_train', 1) # 16
@@ -60,12 +60,15 @@ def dataLoader(config, dataset='syn', warp_input=False, train=True, val=True):
     # if dataset == 'syn':
     #     from datasets.SyntheticDataset_gaussian import SyntheticDataset as Dataset
     # else:
+    assert dataset == "Coco"
     Dataset = get_module('datasets', dataset)
     print(f"dataset: {dataset}")
 
     train_set = Dataset(
+        proxy,
+        proxy_isp_dataset,
         transform=data_transforms['train'],
-        task = 'train',
+        task = 'train', # task is for seperate train val image dir loading
         **config['data'],
     )
     train_loader = torch.utils.data.DataLoader(
@@ -75,6 +78,8 @@ def dataLoader(config, dataset='syn', warp_input=False, train=True, val=True):
         worker_init_fn=worker_init_fn
     )
     val_set = Dataset(
+        proxy,
+        proxy_isp_dataset,
         transform=data_transforms['train'],
         task = 'val',
         **config['data'],

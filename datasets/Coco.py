@@ -10,6 +10,8 @@ from utils.tools import dict_update
 import cv2
 from utils.utils import homography_scaling_torch as homography_scaling
 from utils.utils import filter_points
+import glob
+import rawpy
 
 class Coco(data.Dataset):
     default_config = {
@@ -44,9 +46,12 @@ class Coco(data.Dataset):
         }
     }
 
-    def __init__(self, export=False, transform=None, task='train', **config):
+    def __init__(self, proxy, proxy_isp_dataset, export=False, transform=None, task='train', **config):
 
         # Update config
+        self.proxy = proxy
+        self.proxy_isp_dataset = proxy_isp_dataset
+        self.device = "cuda"
         self.config = self.default_config
         self.config = dict_update(self.config, config)
 
@@ -54,9 +59,12 @@ class Coco(data.Dataset):
         self.action = 'train' if task == 'train' else 'val'
 
         # get files
-        base_path = Path(DATA_PATH, 'COCO/' + task + '2014/')
+        # base_path = Path(DATA_PATH, 'COCO/' + task + '2014/')
+        # TODO fix hardcode
+        base_path = Path("/home/boat/proxyISP/data/s21fe_dataset")
         # base_path = Path(DATA_PATH, 'COCO_small/' + task + '2014/')
-        image_paths = list(base_path.iterdir())
+        image_paths = list([Path(i) for i in glob.glob(str(base_path / "*.dng"))])
+        print(f"total {task} image:", len(image_paths))
         # if config['truncate']:
         #     image_paths = image_paths[:config['truncate']]
         names = [p.stem for p in image_paths]
@@ -164,18 +172,38 @@ class Coco(data.Dataset):
         '''
         def _read_image(path):
             cell = 8
-            input_image = cv2.imread(path)
+            print("path", path)
+            # input_image = cv2.imread(path)
             # print(f"path: {path}, image: {image}")
             # print(f"path: {path}, image: {input_image.shape}")
-            input_image = cv2.resize(input_image, (self.sizer[1], self.sizer[0]),
-                                     interpolation=cv2.INTER_AREA)
-            H, W = input_image.shape[0], input_image.shape[1]
+            # input_image = cv2.resize(input_image, (self.sizer[1], self.sizer[0]),
+            #                          interpolation=cv2.INTER_AREA)
+
+            raw_image = rawpy.imread(path).raw_image
+
+            #TODO make configurable
+            raw_image = raw_image[540:2460, 1040:2960] # 1920, 1920
+            # raw_image = raw_image[0:640, 0:640]
+
+            open("temp_log/raw_image", "w").write(str(raw_image.shape))
+
+            raw_image = self.proxy_isp_dataset.preprocess_raw(raw_image)
+
+            raw_image = raw_image.to("cuda")
+
+            input_image = self.proxy(raw_image[None, :, :, :])[0]
+
+            input_image = input_image.clamp(0, 1)
+
+            # H, W = input_image.shape[0], input_image.shape[1]
             # H = H//cell*cell
             # W = W//cell*cell
             # input_image = input_image[:H,:W,:]
-            input_image = cv2.cvtColor(input_image, cv2.COLOR_RGB2GRAY)
+            # input_image = cv2.cvtColor(input_image, cv2.COLOR_RGB2GRAY)
 
-            input_image = input_image.astype('float32') / 255.0
+            input_image = input_image.mean(dim = 0)
+
+            # input_image = input_image.astype('float32') / 255.0
             return input_image
 
         def _preprocess(image):
@@ -247,20 +275,22 @@ class Coco(data.Dataset):
         img_o = _read_image(sample['image'])
         H, W = img_o.shape[0], img_o.shape[1]
         # print(f"image: {image.shape}")
-        img_aug = img_o.copy()
-        if (self.enable_photo_train == True and self.action == 'train') or (self.enable_photo_val and self.action == 'val'):
-            img_aug = imgPhotometric(img_o) # numpy array (H, W, 1)
+        # img_aug = img_o.copy()
+        # if (self.enable_photo_train == True and self.action == 'train') or (self.enable_photo_val and self.action == 'val'):
+        #     img_aug = imgPhotometric(img_o) # numpy array (H, W, 1)
 
 
         # img_aug = _preprocess(img_aug[:,:,np.newaxis])
-        img_aug = torch.tensor(img_aug, dtype=torch.float32).view(-1, H, W)
+        # img_aug = torch.tensor(img_aug, dtype=torch.float32).view(-1, H, W)
 
         valid_mask = self.compute_valid_mask(torch.tensor([H, W]), inv_homography=torch.eye(3))
-        input.update({'image': img_aug})
+        # input.update({'image': img_aug})
+        input.update({'image': img_o})
         input.update({'valid_mask': valid_mask})
 
         if self.config['homography_adaptation']['enable']:
             # img_aug = torch.tensor(img_aug)
+            print("dooooooooooooo")
             homoAdapt_iter = self.config['homography_adaptation']['num']
             homographies = np.stack([self.sample_homography(np.array([2, 2]), shift=-1,
                            **self.config['homography_adaptation']['homographies']['params'])

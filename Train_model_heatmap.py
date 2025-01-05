@@ -224,21 +224,22 @@ class Train_model_heatmap(Train_model_frontend):
         self.optimizer.zero_grad()
 
         # forward + backward + optimize
-        if train:
-            # print("img: ", img.shape, ", img_warp: ", img_warp.shape)
-            outs = self.net(img.to(self.device))
-            semi, coarse_desc = outs["semi"], outs["desc"]
-            if if_warp:
-                outs_warp = self.net(img_warp.to(self.device))
-                semi_warp, coarse_desc_warp = outs_warp["semi"], outs_warp["desc"]
-        else:
-            with torch.no_grad():
+        with torch.no_grad():
+            if train:
+                # print("img: ", img.shape, ", img_warp: ", img_warp.shape)
                 outs = self.net(img.to(self.device))
                 semi, coarse_desc = outs["semi"], outs["desc"]
                 if if_warp:
                     outs_warp = self.net(img_warp.to(self.device))
                     semi_warp, coarse_desc_warp = outs_warp["semi"], outs_warp["desc"]
-                pass
+            else:
+                with torch.no_grad():
+                    outs = self.net(img.to(self.device))
+                    semi, coarse_desc = outs["semi"], outs["desc"]
+                    if if_warp:
+                        outs_warp = self.net(img_warp.to(self.device))
+                        semi_warp, coarse_desc_warp = outs_warp["semi"], outs_warp["desc"]
+                    pass
 
         # detector loss
         from utils.utils import labels2Dto3D

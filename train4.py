@@ -5,6 +5,15 @@ Author: You-Yi Jau, Rui Zhu
 Date: 2019/12/12
 """
 
+import sys
+sys.path.insert(0, "../ProxyOpt/")
+sys.path.insert(0, "../fast-openISP/")
+sys.path.insert(0, "../ProxyOpt/pytorch-msssim/")
+from ISP_tools.ProxyISPDataset import ProxyISPDataset, EXPERIMENT_OUTPUT_PATH
+from proxy_utils import extract_iteration
+from model import U_Net
+from pathlib import Path
+
 import argparse
 import yaml
 import os
@@ -45,6 +54,11 @@ def train_base(config, output_dir, args):
 #     pass
 
 def train_joint(config, output_dir, args):
+    torch.multiprocessing.set_start_method('spawn')
+    
+    train_config_path = "/home/boat/proxyISP/ProxyOpt/train_configs/v11.yaml"
+    proxy, proxy_isp_dataset = load_proxy_model_and_dataset(train_config_path)
+
     assert 'train_iter' in config
 
     # config
@@ -65,7 +79,7 @@ def train_joint(config, output_dir, args):
 
     # data loading
     # data = dataLoader(config, dataset='syn', warp_input=True)
-    data = dataLoader(config, dataset=task, warp_input=True)
+    data = dataLoader(config, proxy, proxy_isp_dataset, dataset=task, warp_input=True)
     train_loader, val_loader = data['train_loader'], data['val_loader']
 
     datasize(train_loader, config, tag='train')
@@ -95,6 +109,73 @@ def train_joint(config, output_dir, args):
         print ("press ctrl + c, save model!")
         train_agent.saveModel()
         pass
+
+def load_proxy_model_and_dataset(train_config_path):
+    PROXYOPT_BASE_PATH = Path("../ProxyOpt/")
+    with open(train_config_path, "r") as f:
+        yaml_dict = yaml.safe_load(f)
+
+    config = yaml_dict["config"]
+    openisp_config = yaml_dict["openisp_config"]
+    hyp_setting = yaml_dict["hyp_setting"]
+
+    stage2_output_dir = Path("proxyopt_output") / (config["experiment_name"] + "s1")
+
+    if not os.path.exists(stage2_output_dir):
+        os.makedirs(stage2_output_dir)
+        os.makedirs(stage2_output_dir / "logs")
+        os.makedirs(stage2_output_dir / "checkpoints")
+
+    latest_stage2_obj = None
+    checkpoints = list(os.scandir(stage2_output_dir / "checkpoints"))
+    if checkpoints.__len__() > 0:
+        latest_stage2_checkpoint_path = max(checkpoints, key = lambda x: int(x.name.split("_")[-1].split("it")[0]))
+        latest_stage2_obj = torch.load(latest_stage2_checkpoint_path.path)
+
+    output_dir = PROXYOPT_BASE_PATH / EXPERIMENT_OUTPUT_PATH / config["experiment_name"]
+    checkpoint_dir = output_dir / "checkpoints"
+    # checkpoint_dir.mkdir(parents=True, exist_ok=True)
+
+    checkpoint_files = os.listdir(output_dir / "checkpoints")
+
+    latest_file = max(checkpoint_files, key=lambda f: extract_iteration(f))
+
+    latest_obj = torch.load(output_dir / "checkpoints" / latest_file)
+
+    config = latest_obj["config"]
+
+    # Model and dataset initialization
+    in_channels = 1
+    if config["input_type"] == "stacked":
+        in_channels = 4  # GRGB
+
+    additional_conf = {
+        "target_image": ["/home/boat/proxyISP/data/s21fe_dataset/20240115_123915.dng"],
+        "proxyopt_base_path": "/home/boat/proxyISP/ProxyOpt/"
+    }
+
+    dataset = ProxyISPDataset(config, openisp_config, hyp_setting, additional_conf)
+
+    raw, _, sample_hyp = dataset.__getitem__(0)
+    param_number = sample_hyp.shape[-1]
+
+    net = U_Net(in_channels, 3, step_flag=3, img_size=config["img_size"], param_number=param_number)
+    net.load_state_dict(latest_obj["model_state_dict"])
+    net = net.to("cuda")
+
+    # Setup target and starting hyperparameters
+    dataset.switch_stage2()
+    net.img_size = dataset.target_size
+    start_hyp = dataset.get_original_hyp(True, True, add_eps = False)
+    net.load_param_layer(start_hyp)
+
+    if latest_stage2_obj is not None:
+        net.param_layer = latest_stage2_obj["param_layer"]
+        net.param_layer.requires_grad = True
+
+    net.set_requires_param_layer_grad(True)
+
+    return net, dataset
 
 if __name__ == '__main__':
     # global var
