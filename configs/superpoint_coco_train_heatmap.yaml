@@ -2,7 +2,7 @@ data:
     # name: 'coco'
     dataset: 'Coco' # 'coco'
 
-    labels: False
+    labels: True
     root: # datasets/COCO
     root_split_txt: # /datasets/COCO
 
@@ -47,6 +47,23 @@ data:
             max_angle: 1.57
             allow_artifacts: true # true
         valid_border_margin: 3
+    # b - do homoadapt online, copy from magicpoint_coco_export.yaml
+    homography_adaptation:
+        enable: true
+        num: 100 # 100
+        aggregation: 'sum'
+        filter_counts: 0
+        homographies:
+            params:
+                translation: true
+                rotation: true
+                scaling: true
+                perspective: true
+                scaling_amplitude: 0.2
+                perspective_amplitude_x: 0.2
+                perspective_amplitude_y: 0.2
+                allow_artifacts: true
+                patch_ratio: 0.85
 
 front_end_model: 'Train_model_heatmap'  # 'Train_model_frontend'
 

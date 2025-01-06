@@ -44,7 +44,9 @@ from models.model_wrap import SuperPointFrontend_torch, PointTracker
 from settings import EXPER_PATH
 
 #### util functions
-
+from utils.utils import pltImshow
+from utils.utils import saveImg
+from utils.draw import draw_keypoints
 
 def combine_heatmap(heatmap, inv_homographies, mask_2D, device="cpu"):
     ## multiply heatmap with mask_2D
@@ -191,6 +193,183 @@ def export_descriptor(config, output_dir, args):
         count += 1
     print("output pairs: ", count)
 
+
+@torch.no_grad()
+def export_detector_homoAdapt_gpu_online(input_dict, config, superpoint_frontend,):
+    """
+    input 1 images, output pseudo ground truth by homography adaptation.
+    Save labels:
+        pred:
+            'prob' (keypoints): np (N1, 3)
+    """
+    # basic setting
+    task = config["data"]["dataset"]
+    export_task = config["data"]["export_folder"]
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+    # logging.info("train on device: %s", device)
+    # with open(os.path.join(output_dir, "config.yml"), "w") as f:
+    #     yaml.dump(config, f, default_flow_style=False)
+    # writer = SummaryWriter(
+    #     getWriterPath(task=args.command, exper_name=args.exper_name, date=True)
+    # )
+
+    ## parameters
+    # b - nms, top_k from magicpoint_coco_export.yaml 
+    # nms_dist = config["model"]["nms"]  # 4
+    # top_k = config["model"]["top_k"]
+    top_k = 600
+    homoAdapt_iter = config["data"]["homography_adaptation"]["num"]
+    outputMatches = True
+    count = 0
+    max_length = 5
+    # output_images = args.outputImg
+    check_exist = True
+
+    ## save data
+    # save_path = Path(output_dir)
+    # save_output = save_path
+    # save_output = save_output / "predictions" / export_task
+    # save_path = save_path / "checkpoints"
+    # logging.info("=> will save everything to {}".format(save_path))
+    # os.makedirs(save_path, exist_ok=True)
+    # os.makedirs(save_output, exist_ok=True)
+
+    # data loading
+    # from utils.loader import dataLoader_test as dataLoader
+
+    # data = dataLoader(config, dataset=task, export_task=export_task)
+    # test_set, test_loader = data["test_set"], data["test_loader"]
+
+    # model loading
+    ## load pretrained
+
+    # try:
+    #     path = config["pretrained"]
+    #     print("==> Loading pre-trained network.")
+    #     print("path: ", path)
+    #     # This class runs the SuperPoint network and processes its outputs.
+
+    #     fe = SuperPointFrontend_torch(
+    #         config=config,
+    #         weights_path=path,
+    #         nms_dist=nms_dist,
+    #         conf_thresh=conf_thresh,
+    #         nn_thresh=nn_thresh,
+    #         cuda=False,
+    #         device=device,
+    #     )
+    #     print("==> Successfully loaded pre-trained network.")
+
+    #     fe.net_parallel()
+    #     print(path)
+    #     # save to files
+    #     save_file = save_output / "export.txt"
+    #     with open(save_file, "a") as myfile:
+    #         myfile.write("load model: " + path + "\n")
+    # except Exception:
+    #     print(f"load model: {path} failed! ")
+    #     raise
+
+    # def load_as_float(path):
+    #     return imread(path).astype(np.float32) / 255
+
+    # tracker = PointTracker(max_length, nn_thresh=fe.nn_thresh)
+    # with open(save_file, "a") as myfile:
+    #     myfile.write("homography adaptation: " + str(homoAdapt_iter) + "\n")
+
+    ## loop through all images
+    # for i, sample in tqdm(enumerate(test_loader)):
+    fe = superpoint_frontend
+    sample = input_dict
+
+    img, mask_2D = sample["image"], sample["valid_mask"]
+    img = img.detach().clone()
+
+    img = img.unsqueeze(0)
+    mask_2D = mask_2D.unsqueeze(0)
+    
+    img = img.transpose(0, 1)
+    mask_2D = mask_2D.transpose(0, 1)
+
+    inv_homographies, homographies = (
+        sample["homographies"],
+        sample["inv_homographies"],
+    )
+    img, mask_2D, homographies, inv_homographies = (
+        img.to(device),
+        mask_2D.to(device),
+        homographies.to(device),
+        inv_homographies.to(device),
+    )
+
+
+    inv_homographies = inv_homographies.unsqueeze(0)
+    homographies = homographies.unsqueeze(0)
+    # sample = test_set[i]
+    # name = sample["name"][0]
+    # logging.info(f"name: {name}")
+    # if check_exist:
+    #     p = Path(save_output, "{}.npz".format(name))
+    #     if p.exists():
+    #         logging.info("file %s exists. skip the sample.", name)
+    #         continue
+
+    # pass through network
+    open("temp_log/img_to_homadapt_shape", "w").write(str(f"img:{img.shape} mask_2D:{mask_2D.shape}"))
+    with torch.no_grad():
+        heatmap = fe.run(img, onlyHeatmap=True, train=False)
+    outputs = combine_heatmap(heatmap, inv_homographies, mask_2D, device=device)
+    pts = fe.getPtsFromHeatmap(outputs.detach().cpu().squeeze())  # (x,y, prob)
+
+    # subpixel prediction
+    # if config["model"]["subpixel"]["enable"]:
+    subpixel = True
+    if subpixel:
+        fe.heatmap = outputs  # tensor [batch, 1, H, W]
+        print("outputs: ", outputs.shape)
+        print("pts: ", pts.shape)
+        pts = fe.soft_argmax_points([pts])
+        pts = pts[0]
+
+    ## top K points
+    pts = pts.transpose()
+    print("total points: ", pts.shape)
+    print("pts: ", pts[:5])
+    if top_k:
+        if pts.shape[0] > top_k:
+            pts = pts[:top_k, :]
+            print("topK filter: ", pts.shape)
+
+    ## save keypoints
+    # pred = {}
+    # pred.update({"pts": pts})
+    return pts
+
+    # ## - make directories
+    # filename = str(name)
+    # if task == "Kitti" or "Kitti_inh":
+    #     scene_name = sample["scene_name"][0]
+    #     os.makedirs(Path(save_output, scene_name), exist_ok=True)
+
+    # path = Path(save_output, "{}.npz".format(filename))
+    # np.savez_compressed(path, **pred)
+
+    # ## output images for visualization labels
+    # if output_images:
+    #     img_pts = draw_keypoints(img_2D * 255, pts.transpose())
+    #     f = save_output / (str(count) + ".png")
+    #     if task == "Coco" or "Kitti":
+    #         f = save_output / (name + ".png")
+    #     saveImg(img_pts, str(f))
+    # count += 1
+
+    # print("output pseudo ground truth: ", count)
+    # save_file = save_output / "export.txt"
+    # with open(save_file, "a") as myfile:
+    #     myfile.write("Homography adaptation: " + str(homoAdapt_iter) + "\n")
+    #     myfile.write("output pairs: " + str(count) + "\n")
+    # pass
 
 @torch.no_grad()
 def export_detector_homoAdapt_gpu(config, output_dir, args):

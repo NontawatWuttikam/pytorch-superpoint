@@ -3,7 +3,10 @@ import numpy as np
 import torch
 from pathlib import Path
 import torch.utils.data as data
-
+import sys
+sys.path.insert(0, "../pytorch-superpoint")
+from export import export_detector_homoAdapt_gpu_online
+from models.model_wrap import SuperPointFrontend_torch
 # from .base_dataset import BaseDataset
 from settings import DATA_PATH, EXPER_PATH
 from utils.tools import dict_update
@@ -12,6 +15,7 @@ from utils.utils import homography_scaling_torch as homography_scaling
 from utils.utils import filter_points
 import glob
 import rawpy
+import yaml
 
 class Coco(data.Dataset):
     default_config = {
@@ -48,9 +52,34 @@ class Coco(data.Dataset):
 
     def __init__(self, proxy, proxy_isp_dataset, export=False, transform=None, task='train', **config):
 
-        # Update config
+        # b - proxyopt area
         self.proxy = proxy
+        self.adaptivepool2d = torch.nn.AdaptiveAvgPool2d((240, 320))
         self.proxy_isp_dataset = proxy_isp_dataset
+
+        # b - online homoadapt area
+        # TODO: make configurable
+        # load homoadapt config 
+        homoadapt_config_path = "/home/boat/proxyISP/pytorch-superpoint/configs/magicpoint_coco_export.yaml"
+        with open(homoadapt_config_path, "r") as f:
+            self.homoadapt_config = yaml.safe_load(f)
+
+        path = self.homoadapt_config["pretrained"]
+        nms_dist = 4
+        nn_thresh = 0.7
+        conf_thresh = self.homoadapt_config["model"]["detection_threshold"]
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        self.superpoint_frontend = SuperPointFrontend_torch(
+                config=self.homoadapt_config,
+                weights_path=path,
+                nms_dist=nms_dist,
+                conf_thresh=conf_thresh,
+                nn_thresh=nn_thresh,
+                cuda=False,
+                device=device,
+        )
+
+        # Update config
         self.device = "cuda"
         self.config = self.default_config
         self.config = dict_update(self.config, config)
@@ -72,33 +101,40 @@ class Coco(data.Dataset):
         files = {'image_paths': image_paths, 'names': names}
 
 
+        # sequence_set = []
+        # # labels
+        # self.labels = False
+        # if self.config['labels']:
+        #     self.labels = True
+        #     # from models.model_wrap import labels2Dto3D
+        #     # self.labels2Dto3D = labels2Dto3D
+        #     print("load labels from: ", self.config['labels']+'/'+task)
+        #     count = 0
+        #     for (img, name) in zip(files['image_paths'], files['names']):
+        #         p = Path(self.config['labels'], task, '{}.npz'.format(name))
+        #         if p.exists():
+        #             sample = {'image': img, 'name': name, 'points': str(p)}
+        #             sequence_set.append(sample)
+        #             count += 1
+        #         # if count > 100:
+        #         #     print ("only load %d image!!!", count)
+        #         #     print ("only load one image!!!")
+        #         #     print ("only load one image!!!")
+        #         #     break
+        #     pass
+        # else:
+        #     for (img, name) in zip(files['image_paths'], files['names']):
+        #         sample = {'image': img, 'name': name}
+        #         sequence_set.append(sample)
+        # self.samples = sequence_set
+
         sequence_set = []
-        # labels
-        self.labels = False
-        if self.config['labels']:
-            self.labels = True
-            # from models.model_wrap import labels2Dto3D
-            # self.labels2Dto3D = labels2Dto3D
-            print("load labels from: ", self.config['labels']+'/'+task)
-            count = 0
-            for (img, name) in zip(files['image_paths'], files['names']):
-                p = Path(self.config['labels'], task, '{}.npz'.format(name))
-                if p.exists():
-                    sample = {'image': img, 'name': name, 'points': str(p)}
-                    sequence_set.append(sample)
-                    count += 1
-                # if count > 100:
-                #     print ("only load %d image!!!", count)
-                #     print ("only load one image!!!")
-                #     print ("only load one image!!!")
-                #     break
-            pass
-        else:
-            for (img, name) in zip(files['image_paths'], files['names']):
+        for (img, name) in zip(files['image_paths'], files['names']):
                 sample = {'image': img, 'name': name}
                 sequence_set.append(sample)
         self.samples = sequence_set
-
+        self.labels = self.config['labels']
+        open("temp_log/self.labels", "w").write(str(self.labels))
         self.init_var()
 
         pass
@@ -193,6 +229,10 @@ class Coco(data.Dataset):
 
             input_image = self.proxy(raw_image[None, :, :, :])[0]
 
+            input_image = self.adaptivepool2d(input_image)
+
+            # open("temp_log/pooled_input_image", "w").write(str(input_image.shape))
+
             input_image = input_image.clamp(0, 1)
 
             # H, W = input_image.shape[0], input_image.shape[1]
@@ -202,6 +242,7 @@ class Coco(data.Dataset):
             # input_image = cv2.cvtColor(input_image, cv2.COLOR_RGB2GRAY)
 
             input_image = input_image.mean(dim = 0)
+            # open("temp_log/after_reduce_image_shape", "w").write(str(input_image.shape))
 
             # input_image = input_image.astype('float32') / 255.0
             return input_image
@@ -269,11 +310,15 @@ class Coco(data.Dataset):
         sample = self.samples[index]
         sample = self.format_sample(sample)
         input  = {}
+        input_homoadapt = {}
         input.update(sample)
+        input_homoadapt.update(sample)
         # image
         # img_o = _read_image(self.get_img_from_sample(sample))
         img_o = _read_image(sample['image'])
+        img_o = img_o.cpu()
         H, W = img_o.shape[0], img_o.shape[1]
+        img_o = img_o[:,:,None]
         # print(f"image: {image.shape}")
         # img_aug = img_o.copy()
         # if (self.enable_photo_train == True and self.action == 'train') or (self.enable_photo_val and self.action == 'val'):
@@ -285,12 +330,16 @@ class Coco(data.Dataset):
 
         valid_mask = self.compute_valid_mask(torch.tensor([H, W]), inv_homography=torch.eye(3))
         # input.update({'image': img_aug})
+
         input.update({'image': img_o})
         input.update({'valid_mask': valid_mask})
+        input_homoadapt.update({'image': img_o})
+        input_homoadapt.update({'valid_mask': valid_mask})
 
+        # b - this step is true when run export.py homoadapt, but we need online processing, so we will do it in train_superpoint step.
+        # b - enable to true in superpoint_coco_train_heatmap
         if self.config['homography_adaptation']['enable']:
             # img_aug = torch.tensor(img_aug)
-            print("dooooooooooooo")
             homoAdapt_iter = self.config['homography_adaptation']['num']
             homographies = np.stack([self.sample_homography(np.array([2, 2]), shift=-1,
                            **self.config['homography_adaptation']['homographies']['params'])
@@ -306,21 +355,34 @@ class Coco(data.Dataset):
             inv_homographies = torch.stack([torch.inverse(homographies[i, :, :]) for i in range(homoAdapt_iter)])
 
             # images
-            warped_img = self.inv_warp_image_batch(img_aug.squeeze().repeat(homoAdapt_iter,1,1,1), inv_homographies, mode='bilinear').unsqueeze(0)
+            # warped_img = self.inv_warp_image_batch(img_aug.squeeze().repeat(homoAdapt_iter,1,1,1), inv_homographies, mode='bilinear').unsqueeze(0)
+            warped_img = self.inv_warp_image_batch(img_o.squeeze().repeat(homoAdapt_iter,1,1,1), inv_homographies, mode='bilinear').unsqueeze(0)
             warped_img = warped_img.squeeze()
             # masks
             valid_mask = self.compute_valid_mask(torch.tensor([H, W]), inv_homography=inv_homographies,
                                                  erosion_radius=self.config['augmentation']['homographic'][
                                                      'valid_border_margin'])
-            input.update({'image': warped_img, 'valid_mask': valid_mask, 'image_2D':img_aug})
-            input.update({'homographies': homographies, 'inv_homographies': inv_homographies})
+            # input.update({'image': warped_img, 'valid_mask': valid_mask, 'image_2D':img_aug})
+            # input.update({'image': warped_img, 'valid_mask': valid_mask, 'image_2D':img_o})
+            # input.update({'homographies': homographies, 'inv_homographies': inv_homographies})
+            input_homoadapt.update({'image': warped_img, 'valid_mask': valid_mask, 'image_2D':img_o})
+            input_homoadapt.update({'homographies': homographies, 'inv_homographies': inv_homographies})
+            open("temp_log/input_homoadapt_shapes", "w").write(f"image:{warped_img.shape}, valid_mask:{valid_mask.shape}, image_2D:{img_o.shape} homographies:{homographies.shape}, inv_homographies:{inv_homographies.shape}")
 
         # laebls
         if self.labels:
-            pnts = np.load(sample['points'])['pts']
+            # b - from homographic adaptation
+            # pnts = np.load(sample['points'])['pts']
+            # b - do online homoadapt instead 
+            open("temp_log/do", "w").write("dooo")
+            pnts = export_detector_homoAdapt_gpu_online(input_homoadapt, self.homoadapt_config, self.superpoint_frontend, )
+            open("temp_log/homoadapt_pnts_online", "w").write(str(pnts))
+            
             # pnts = pnts.astype(int)
             # labels = np.zeros_like(img_o)
             # labels[pnts[:, 1], pnts[:, 0]] = 1
+            
+            # b - create 2d boolean label map fram pnts
             labels = points_to_2D(pnts, H, W)
             labels_2D = to_floatTensor(labels[np.newaxis,:,:])
             input.update({'labels_2D': labels_2D})
@@ -329,6 +391,7 @@ class Coco(data.Dataset):
             labels_res = torch.zeros((2, H, W)).type(torch.FloatTensor)
             input.update({'labels_res': labels_res})
 
+            #not enabled - BOAT
             if (self.enable_homo_train == True and self.action == 'train') or (self.enable_homo_val and self.action == 'val'):
                 homography = self.sample_homography(np.array([2, 2]), shift=-1,
                                                     **self.config['augmentation']['homographic']['params'])

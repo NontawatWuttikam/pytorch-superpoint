@@ -42,7 +42,7 @@ def worker_init_fn(worker_id):
    np.random.seed(base_seed + worker_id)
 
 
-def dataLoader(config, proxy, proxy_isp_dataset, dataset='syn', warp_input=False, train=True, val=True):
+def dataLoader(config, proxy, proxy_isp_dataset, dataset='syn', warp_input=False, train=True, val=True, load_dataloader = True):
     import torchvision.transforms as transforms
     training_params = config.get('training', {})
     workers_train = training_params.get('workers_train', 1) # 16
@@ -71,12 +71,6 @@ def dataLoader(config, proxy, proxy_isp_dataset, dataset='syn', warp_input=False
         task = 'train', # task is for seperate train val image dir loading
         **config['data'],
     )
-    train_loader = torch.utils.data.DataLoader(
-        train_set, batch_size=config['model']['batch_size'], shuffle=True,
-        pin_memory=True,
-        num_workers=workers_train,
-        worker_init_fn=worker_init_fn
-    )
     val_set = Dataset(
         proxy,
         proxy_isp_dataset,
@@ -84,12 +78,21 @@ def dataLoader(config, proxy, proxy_isp_dataset, dataset='syn', warp_input=False
         task = 'val',
         **config['data'],
     )
-    val_loader = torch.utils.data.DataLoader(
-        val_set, batch_size=config['model']['eval_batch_size'], shuffle=True,
-        pin_memory=True,
-        num_workers=workers_val,
-        worker_init_fn=worker_init_fn
-    )
+    train_loader = None
+    val_loader = None
+    if load_dataloader:
+        train_loader = torch.utils.data.DataLoader(
+            train_set, batch_size=config['model']['batch_size'], shuffle=True,
+            pin_memory=True,
+            num_workers=workers_train,
+            worker_init_fn=worker_init_fn
+        )
+        val_loader = torch.utils.data.DataLoader(
+            val_set, batch_size=config['model']['eval_batch_size'], shuffle=True,
+            pin_memory=True,
+            num_workers=workers_val,
+            worker_init_fn=worker_init_fn
+        )
     # val_set, val_loader = None, None
     return {'train_loader': train_loader, 'val_loader': val_loader,
             'train_set': train_set, 'val_set': val_set}

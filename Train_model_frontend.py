@@ -272,7 +272,13 @@ class Train_model_frontend(object):
         while self.n_iter < self.max_iter:
             print("epoch: ", epoch)
             epoch += 1
-            for i, sample_train in tqdm(enumerate(self.train_loader)):
+            # for i, sample_train in tqdm(enumerate(self.train_loader)):
+            for i in tqdm(range(len(self.train_set))):
+                sample_train = self.train_set.__getitem__(i)
+                for k,v in sample_train.items():
+                    # print(k,v)
+                    if isinstance(sample_train[k], torch.Tensor):
+                        sample_train[k] = v.unsqueeze(0) # add batch dim to sample
                 # train one sample
                 loss_out = self.train_val_sample(sample_train, self.n_iter, True)
                 self.n_iter += 1

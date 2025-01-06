@@ -79,11 +79,12 @@ def train_joint(config, output_dir, args):
 
     # data loading
     # data = dataLoader(config, dataset='syn', warp_input=True)
-    data = dataLoader(config, proxy, proxy_isp_dataset, dataset=task, warp_input=True)
-    train_loader, val_loader = data['train_loader'], data['val_loader']
+    data = dataLoader(config, proxy, proxy_isp_dataset, dataset=task, warp_input=True, load_dataloader = False)
+    # train_loader, val_loader = data['train_loader'], data['val_loader']
+    train_set, val_set = data["train_set"], data["val_set"]
 
-    datasize(train_loader, config, tag='train')
-    datasize(val_loader, config, tag='val')
+    # datasize(train_loader, config, tag='train')
+    # datasize(val_loader, config, tag='val')
     # init the training agent using config file
     # from train_model_frontend import Train_model_frontend
     from utils.loader import get_module
@@ -95,8 +96,10 @@ def train_joint(config, output_dir, args):
     train_agent.writer = writer
 
     # feed the data into the agent
-    train_agent.train_loader = train_loader
-    train_agent.val_loader = val_loader
+    # train_agent.train_loader = train_loader
+    # train_agent.val_loader = val_loader
+    train_agent.train_set = train_set
+    train_agent.val_set = val_set
 
     # load model initiates the model and load the pretrained model (if any)
     train_agent.loadModel()
