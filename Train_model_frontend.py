@@ -10,6 +10,7 @@ import torch
 # from torch.autograd import Variable
 # import torch.backends.cudnn as cudnn
 import torch.optim
+import torch.optim as optim
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.data
@@ -189,7 +190,9 @@ class Train_model_frontend(object):
         print("model: ", model)
         net = modelLoader(model=model, **params).to(self.device)
         logging.info("=> setting adam solver")
-        optimizer = self.adamOptim(net, lr=self.config["model"]["learning_rate"])
+        # optimize proxy instead of superpoint - BOAT
+        # optimizer = self.adamOptim(net, lr=self.config["model"]["learning_rate"])
+        optimizer = optim.Adam([self.train_set.proxy.param_layer], lr=self.config["proxyopt"]["learning_rate"])
 
         n_iter = 0
         ## new model or load pretrained

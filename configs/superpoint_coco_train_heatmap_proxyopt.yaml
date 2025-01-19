@@ -108,12 +108,17 @@ model:
         # settings: 'predict flow directly'
         # loss_func: 'subpixel_loss_no_argmax' # subpixel_loss, subpixel_loss_no_argmax
 
+proxyopt:
+    learning_rate: 0.000005
+    
 retrain: True # set true for new model
 reset_iter: True # set true to set the iteration number to 0
 train_iter: 200000 # 170000
-validation_interval: 200 # 2000
-tensorboard_interval: 200 # 200
-save_interval: 200 # 2000
+
+# turn off sp val and log - BOAT
+validation_interval: 200000 # 2000
+tensorboard_interval: 200000 # 200
+save_interval: 200000 # 2000
 validation_size: 5
 
 pretrained: 

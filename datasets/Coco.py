@@ -54,7 +54,9 @@ class Coco(data.Dataset):
 
         # b - proxyopt area
         self.proxy = proxy
-        self.adaptivepool2d = torch.nn.AdaptiveAvgPool2d((240, 320))
+        self.adaptivepool2d = torch.nn.AdaptiveAvgPool2d((360, 480))
+        # self.adaptivepool2d = torch.nn.AdaptiveAvgPool2d((480, 640))
+        # self.adaptivepool2d = torch.nn.AdaptiveAvgPool2d((240, 320))
         self.proxy_isp_dataset = proxy_isp_dataset
 
         # b - online homoadapt area
@@ -69,7 +71,7 @@ class Coco(data.Dataset):
         nn_thresh = 0.7
         conf_thresh = self.homoadapt_config["model"]["detection_threshold"]
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        self.superpoint_frontend = SuperPointFrontend_torch(
+        self.superpoint_homoadapt_frontend = SuperPointFrontend_torch(
                 config=self.homoadapt_config,
                 weights_path=path,
                 nms_dist=nms_dist,
@@ -89,10 +91,9 @@ class Coco(data.Dataset):
 
         # get files
         # base_path = Path(DATA_PATH, 'COCO/' + task + '2014/')
-        # TODO fix hardcode
-        base_path = Path("/home/boat/proxyISP/data/s21fe_dataset")
         # base_path = Path(DATA_PATH, 'COCO_small/' + task + '2014/')
-        image_paths = list([Path(i) for i in glob.glob(str(base_path / "*.dng"))])
+        # image_paths = list([Path(i) for i in glob.glob(str(base_path / "*.dng"))])
+        image_paths = [Path(p) for p in proxy_isp_dataset.raw_img]
         print(f"total {task} image:", len(image_paths))
         # if config['truncate']:
         #     image_paths = image_paths[:config['truncate']]
@@ -219,17 +220,21 @@ class Coco(data.Dataset):
 
             #TODO make configurable
             raw_image = raw_image[540:2460, 1040:2960] # 1920, 1920
+            # raw_image = raw_image[1680: 1680 + 640, 1180:1180 + 640] # 640, 640
             # raw_image = raw_image[0:640, 0:640]
 
             open("temp_log/raw_image", "w").write(str(raw_image.shape))
 
+            print("process raw with proxy hype:", self.proxy.return_param_value())
             raw_image = self.proxy_isp_dataset.preprocess_raw(raw_image)
 
             raw_image = raw_image.to("cuda")
 
             input_image = self.proxy(raw_image[None, :, :, :])[0]
+            print("MEMORY after proxy forward pass:",  '{:,}'.format(torch.cuda.memory_allocated()))
 
             input_image = self.adaptivepool2d(input_image)
+            # print("input_image", input_image)
 
             # open("temp_log/pooled_input_image", "w").write(str(input_image.shape))
 
@@ -318,7 +323,8 @@ class Coco(data.Dataset):
         img_o = _read_image(sample['image'])
         img_o = img_o.cpu()
         H, W = img_o.shape[0], img_o.shape[1]
-        img_o = img_o[:,:,None]
+        # img_o = img_o[:,:,None]
+        img_o = img_o[None, :, :]
         # print(f"image: {image.shape}")
         # img_aug = img_o.copy()
         # if (self.enable_photo_train == True and self.action == 'train') or (self.enable_photo_val and self.action == 'val'):
@@ -332,6 +338,7 @@ class Coco(data.Dataset):
         # input.update({'image': img_aug})
 
         input.update({'image': img_o})
+        print("img o:", img_o.shape)
         input.update({'valid_mask': valid_mask})
         input_homoadapt.update({'image': img_o})
         input_homoadapt.update({'valid_mask': valid_mask})
@@ -375,7 +382,7 @@ class Coco(data.Dataset):
             # pnts = np.load(sample['points'])['pts']
             # b - do online homoadapt instead 
             open("temp_log/do", "w").write("dooo")
-            pnts = export_detector_homoAdapt_gpu_online(input_homoadapt, self.homoadapt_config, self.superpoint_frontend, )
+            pnts = export_detector_homoAdapt_gpu_online(input_homoadapt, self.homoadapt_config, self.superpoint_homoadapt_frontend, )
             open("temp_log/homoadapt_pnts_online", "w").write(str(pnts))
             
             # pnts = pnts.astype(int)

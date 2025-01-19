@@ -15,6 +15,7 @@ import torch.utils.data
 # from tqdm import tqdm
 # from utils.loader import dataLoader, modelLoader, pretrainedLoader
 import logging
+import gc
 
 from utils.tools import dict_update
 
@@ -25,7 +26,6 @@ from utils.utils import precisionRecall_torch
 
 from pathlib import Path
 from Train_model_frontend import Train_model_frontend
-
 
 def thd_img(img, thd=0.015):
     img[img < thd] = 0
@@ -224,22 +224,25 @@ class Train_model_heatmap(Train_model_frontend):
         self.optimizer.zero_grad()
 
         # forward + backward + optimize
-        with torch.no_grad():
-            if train:
-                # print("img: ", img.shape, ", img_warp: ", img_warp.shape)
+        # with torch.no_grad():
+        if train:
+            print("img: ", img.shape, ", img_warp: ", img_warp.shape)
+            # for parameter in self.net.parameters():
+            #     print("parameter", parameter.requires_grad)
+            outs = self.net(img.to(self.device))
+            print("MEMORY after sp forward pass:",  '{:,}'.format(torch.cuda.memory_allocated()))
+            semi, coarse_desc = outs["semi"], outs["desc"]
+            if if_warp:
+                outs_warp = self.net(img_warp.to(self.device))
+                semi_warp, coarse_desc_warp = outs_warp["semi"], outs_warp["desc"]
+        else:
+            with torch.no_grad():
                 outs = self.net(img.to(self.device))
                 semi, coarse_desc = outs["semi"], outs["desc"]
                 if if_warp:
                     outs_warp = self.net(img_warp.to(self.device))
                     semi_warp, coarse_desc_warp = outs_warp["semi"], outs_warp["desc"]
-            else:
-                with torch.no_grad():
-                    outs = self.net(img.to(self.device))
-                    semi, coarse_desc = outs["semi"], outs["desc"]
-                    if if_warp:
-                        outs_warp = self.net(img_warp.to(self.device))
-                        semi_warp, coarse_desc_warp = outs_warp["semi"], outs_warp["desc"]
-                    pass
+                pass
 
         # detector loss
         from utils.utils import labels2Dto3D
@@ -383,8 +386,17 @@ class Train_model_heatmap(Train_model_frontend):
         self.input_to_imgDict(sample, self.images_dict)
 
         if train:
+            print("Proxy Hype :", self.train_set.proxy.return_param_value())
             loss.backward()
+            print("MEMORY after backward pass:",  '{:,}'.format(torch.cuda.memory_allocated()))
+            print("Proxy Hype Grad: ", self.train_set.proxy.param_layer.grad)
             self.optimizer.step()
+            print("Proxy Hype After Step:", self.train_set.proxy.return_param_value())
+            # self.train_set.proxy.update_param()
+            print("DO STEP OPTIMIZER!!")
+            print("Clearing cuda cache and call gc collect()")
+            torch.cuda.empty_cache()
+            gc.collect()
 
         if n_iter % tb_interval == 0 or task == "val":
             logging.info(
@@ -518,6 +530,13 @@ class Train_model_heatmap(Train_model_frontend):
             self.tb_hist_dict(task, self.hist_dict)
 
         self.tb_scalar_dict(self.scalar_dict, task)
+
+        # logging - BOAT
+        print("Loss final :", loss.item())
+        
+        self.proxy_writer.add_text("Proxy Hype", str(self.train_set.proxy.return_param_value()), n_iter)
+        self.proxy_writer.add_scalar("SP Loss", loss.item(), n_iter)
+        self.proxy_writer.add_image("Image", sample["image"].cpu().detach()[0], n_iter)
 
         return loss.item()
 

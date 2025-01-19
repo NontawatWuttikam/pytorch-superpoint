@@ -13,6 +13,7 @@ from ISP_tools.ProxyISPDataset import ProxyISPDataset, EXPERIMENT_OUTPUT_PATH
 from proxy_utils import extract_iteration
 from model import U_Net
 from pathlib import Path
+# from torch.utils.tensorboard import SummaryWriter
 
 import argparse
 import yaml
@@ -59,6 +60,8 @@ def train_joint(config, output_dir, args):
     train_config_path = "/home/boat/proxyISP/ProxyOpt/train_configs/v11.yaml"
     proxy, proxy_isp_dataset = load_proxy_model_and_dataset(train_config_path)
 
+    proxy_writer = SummaryWriter(f"logs/{args.exper_name}/logs")
+
     assert 'train_iter' in config
 
     # config
@@ -94,6 +97,7 @@ def train_joint(config, output_dir, args):
 
     # writer from tensorboard
     train_agent.writer = writer
+    train_agent.proxy_writer = proxy_writer
 
     # feed the data into the agent
     # train_agent.train_loader = train_loader
@@ -103,7 +107,13 @@ def train_joint(config, output_dir, args):
 
     # load model initiates the model and load the pretrained model (if any)
     train_agent.loadModel()
-    train_agent.dataParallel()
+    # freeze sp model - BOAT
+    for parameter in train_agent.net.parameters():
+        parameter.requires_grad = False
+    
+    # remove dataParallel - BOAT
+    # if dataParallel, TODO: plse go fix dataParallel to optimize proxy instead of superpoint - BOAT
+    # train_agent.dataParallel()
 
     try:
         # train function takes care of training and evaluation
@@ -153,7 +163,8 @@ def load_proxy_model_and_dataset(train_config_path):
         in_channels = 4  # GRGB
 
     additional_conf = {
-        "target_image": ["/home/boat/proxyISP/data/s21fe_dataset/20240115_123915.dng"],
+        # "target_image": ["/home/boat/proxyISP/data/s21fe_dataset/20240115_123915.dng"],
+        "target_image": ["/home/boat/proxyISP/data/s21fe_dataset/20240117_182706.dng"],
         "proxyopt_base_path": "/home/boat/proxyISP/ProxyOpt/"
     }
 
