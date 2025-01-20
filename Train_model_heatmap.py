@@ -16,7 +16,7 @@ import torch.utils.data
 # from utils.loader import dataLoader, modelLoader, pretrainedLoader
 import logging
 import gc
-
+import os
 from utils.tools import dict_update
 
 # from utils.utils import labels2Dto3D, flattenDetection, labels2Dto3D_flattened
@@ -533,10 +533,19 @@ class Train_model_heatmap(Train_model_frontend):
 
         # logging - BOAT
         print("Loss final :", loss.item())
-        
-        self.proxy_writer.add_text("Proxy Hype", str(self.train_set.proxy.return_param_value()), n_iter)
         self.proxy_writer.add_scalar("SP Loss", loss.item(), n_iter)
-        self.proxy_writer.add_image("Image", sample["image"].cpu().detach()[0], n_iter)
+        if n_iter % self.config["proxyopt"]["log_param_iter"] == 0:
+            self.proxy_writer.add_text("Proxy Hype", str(self.train_set.proxy.return_param_value()), n_iter)
+        if n_iter % self.config["proxyopt"]["save_image_iter"] == 0:
+            self.proxy_writer.add_image("Image", sample["image"].cpu().detach()[0], n_iter)
+        
+        # print("self.save_path", self.save_path)
+        # saving checkpoint - BOAT
+        if n_iter % self.config["proxyopt"]["save_hype_iter"] == 0:
+            proxyopt_checkpoint_path = Path(self.save_path).parent / "proxyopt_checkpoints"
+            os.makedirs(proxyopt_checkpoint_path, exist_ok = True)
+            params = self.train_set.proxy.return_param_value()
+            np.save(str(proxyopt_checkpoint_path / f"hype_checkpoint_{n_iter}.npy"), params)
 
         return loss.item()
 

@@ -109,7 +109,10 @@ model:
         # loss_func: 'subpixel_loss_no_argmax' # subpixel_loss, subpixel_loss_no_argmax
 
 proxyopt:
-    learning_rate: 0.000005
+    learning_rate: 0.0005
+    save_image_iter: 100
+    log_param_iter: 100
+    save_hype_iter: 100
     
 retrain: True # set true for new model
 reset_iter: True # set true to set the iteration number to 0
