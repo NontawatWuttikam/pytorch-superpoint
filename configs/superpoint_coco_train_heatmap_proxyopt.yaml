@@ -113,6 +113,7 @@ proxyopt:
     save_image_iter: 100
     log_param_iter: 100
     save_hype_iter: 100
+    lr_scheduler_iter: 1000
     
 retrain: True # set true for new model
 reset_iter: True # set true to set the iteration number to 0
