@@ -164,7 +164,7 @@ def load_proxy_model_and_dataset(train_config_path):
 
     additional_conf = {
         # "target_image": ["/home/boat/proxyISP/data/s21fe_dataset/20240115_123915.dng"],
-        "target_image": ["/home/boat/proxyISP/data/s21fe_dataset/20240117_182706.dng"],
+        # "target_image": ["/home/boat/proxyISP/data/s21fe_dataset/20240117_182706.dng"],
         "proxyopt_base_path": "/home/boat/proxyISP/ProxyOpt/"
     }
 

@@ -7,6 +7,7 @@ Date: 2019/12/12
 
 import numpy as np
 import torch
+import random
 # from torch.autograd import Variable
 # import torch.backends.cudnn as cudnn
 import torch.optim
@@ -192,7 +193,10 @@ class Train_model_frontend(object):
         logging.info("=> setting adam solver")
         # optimize proxy instead of superpoint - BOAT
         # optimizer = self.adamOptim(net, lr=self.config["model"]["learning_rate"])
+
+        # BOAT - warning!! will not be used since we create new optimizer everytime for each iteration in train_val_sample in train_model_heatmap!! 
         optimizer = optim.Adam([self.train_set.proxy.param_layer], lr=self.config["proxyopt"]["learning_rate"])
+        lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, 20, eta_min=0, last_epoch=-1)
 
         n_iter = 0
         ## new model or load pretrained
@@ -217,6 +221,7 @@ class Train_model_frontend(object):
         self.net = net
         self.optimizer = optimizer
         self.n_iter = setIter(n_iter)
+        self.lr_scheduler = lr_scheduler
         pass
 
 
@@ -276,7 +281,9 @@ class Train_model_frontend(object):
             print("epoch: ", epoch)
             epoch += 1
             # for i, sample_train in tqdm(enumerate(self.train_loader)):
-            for i in tqdm(range(len(self.train_set))):
+            dataset_indices = list(range(len(self.train_set)))
+            random.shuffle(dataset_indices)
+            for i in tqdm(dataset_indices):
                 sample_train = self.train_set.__getitem__(i)
                 for k,v in sample_train.items():
                     # print(k,v)

@@ -221,7 +221,9 @@ class Train_model_heatmap(Train_model_frontend):
             mat_H, mat_H_inv = sample["homographies"], sample["inv_homographies"]
 
         # zero the parameter gradients
-        self.optimizer.zero_grad()
+        optimizer = torch.optim.Adam([self.train_set.proxy.param_layer], self.lr_scheduler.get_last_lr()[0])
+        # self.optimizer.zero_grad()
+        optimizer.zero_grad()
 
         # forward + backward + optimize
         # with torch.no_grad():
@@ -390,13 +392,20 @@ class Train_model_heatmap(Train_model_frontend):
             loss.backward()
             print("MEMORY after backward pass:",  '{:,}'.format(torch.cuda.memory_allocated()))
             print("Proxy Hype Grad: ", self.train_set.proxy.param_layer.grad)
-            self.optimizer.step()
+            # self.optimizer.step()
+            optimizer.step()
             print("Proxy Hype After Step:", self.train_set.proxy.return_param_value())
-            # self.train_set.proxy.update_param()
+            # param = self.train_set.proxy.return_param_value()
+            # self.train_set.proxy.load_param_layer(torch.tensor(param))
+            self.train_set.proxy.update_param()
             print("DO STEP OPTIMIZER!!")
             print("Clearing cuda cache and call gc collect()")
             torch.cuda.empty_cache()
             gc.collect()
+
+        if n_iter > 0 and n_iter % self.config["proxyopt"]["lr_scheduler_iter"] == 0:
+            self.lr_scheduler.step()
+            
 
         if n_iter % tb_interval == 0 or task == "val":
             logging.info(
@@ -533,12 +542,27 @@ class Train_model_heatmap(Train_model_frontend):
 
         # logging - BOAT
         print("Loss final :", loss.item())
-        self.proxy_writer.add_scalar("SP Loss", loss.item(), n_iter)
+        self.proxy_writer.add_scalar("SP_Loss", loss.item(), n_iter)
+        self.proxy_writer.add_scalar("learning_rate", self.lr_scheduler.get_last_lr()[0], n_iter)
         if n_iter % self.config["proxyopt"]["log_param_iter"] == 0:
             self.proxy_writer.add_text("Proxy Hype", str(self.train_set.proxy.return_param_value()), n_iter)
         if n_iter % self.config["proxyopt"]["save_image_iter"] == 0:
-            self.proxy_writer.add_image("Image", sample["image"].cpu().detach()[0], n_iter)
-        
+            current_hyp = self.train_set.proxy.return_param_value()
+            current_hyp = self.train_set.proxy_isp_dataset.denormalize_hyp(current_hyp)
+            current_hyp_image = self.train_set.proxy_isp_dataset.process_raw(sample["bayer"], current_hyp, original_hyp = False)
+            current_hyp_image = torch.tensor(current_hyp_image.astype("float32") / 255.0)
+            current_hyp_image = torch.permute(current_hyp_image, (2, 0, 1))
+
+            initial_hyp_image = self.train_set.proxy_isp_dataset.process_raw(sample["bayer"], original_hyp=True)
+            initial_hyp_image = torch.tensor(initial_hyp_image.astype("float32") / 255.0)
+            initial_hyp_image = torch.permute(initial_hyp_image, (2, 0, 1))
+
+            # current_hype_image = sample["proxy_output_image"][0]
+
+            # Concatenate images horizontally (dim=2 for width)
+            stitched_image = torch.cat((initial_hyp_image, current_hyp_image), dim=2)
+
+            self.proxy_writer.add_image("image (initial, current)", stitched_image, n_iter)
         # print("self.save_path", self.save_path)
         # saving checkpoint - BOAT
         if n_iter % self.config["proxyopt"]["save_hype_iter"] == 0:
