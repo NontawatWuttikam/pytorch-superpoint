@@ -57,7 +57,7 @@ def train_base(config, output_dir, args):
 def train_joint(config, output_dir, args):
     torch.multiprocessing.set_start_method('spawn')
     
-    train_config_path = "/home/boat/proxyISP/ProxyOpt/train_configs/v11.yaml"
+    train_config_path = config["proxyopt"]["config_path"]
     proxy, proxy_isp_dataset = load_proxy_model_and_dataset(train_config_path)
 
     proxy_writer = SummaryWriter(f"logs/{args.exper_name}/logs")
