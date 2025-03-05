@@ -109,9 +109,10 @@ model:
         # loss_func: 'subpixel_loss_no_argmax' # subpixel_loss, subpixel_loss_no_argmax
 
 proxyopt:
+    config_path: '/home/boat/proxyISP/ProxyOpt/train_configs/v13.yaml'
     learning_rate: 0.0005
     save_image_iter: 100
-    log_param_iter: 100
+    log_param_iter: 1
     save_hype_iter: 100
     lr_scheduler_iter: 1000
     
