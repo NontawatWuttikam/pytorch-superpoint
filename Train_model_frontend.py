@@ -8,6 +8,7 @@ Date: 2019/12/12
 import numpy as np
 import torch
 import random
+import traceback
 # from torch.autograd import Variable
 # import torch.backends.cudnn as cudnn
 import torch.optim
@@ -58,7 +59,7 @@ def img_overlap(img_r, img_g, img_gray):  # img_b repeat
 class Train_model_frontend(object):
     """
     # This is the base class for training classes. Wrap pytorch net to help training process.
-    
+
     """
 
     default_config = {
@@ -75,10 +76,10 @@ class Train_model_frontend(object):
             dense_desc: torch (batch_size, H, W, 256)
             pts: [batch_size, np (N, 3)]
             desc: [batch_size, np(256, N)]
-        
+
         :param config:
             dense_loss, sparse_loss (default)
-            
+
         :param save_path:
         :param device:
         :param verbose:
@@ -194,7 +195,7 @@ class Train_model_frontend(object):
         # optimize proxy instead of superpoint - BOAT
         # optimizer = self.adamOptim(net, lr=self.config["model"]["learning_rate"])
 
-        # BOAT - warning!! will not be used since we create new optimizer everytime for each iteration in train_val_sample in train_model_heatmap!! 
+        # BOAT - warning!! will not be used since we create new optimizer everytime for each iteration in train_val_sample in train_model_heatmap!!
         optimizer = optim.Adam([self.train_set.proxy.param_layer], lr=self.config["proxyopt"]["learning_rate"])
         lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, 20, eta_min=0, last_epoch=-1)
 
@@ -284,7 +285,11 @@ class Train_model_frontend(object):
             dataset_indices = list(range(len(self.train_set)))
             random.shuffle(dataset_indices)
             for i in tqdm(dataset_indices):
-                sample_train = self.train_set.__getitem__(i)
+                try:
+                    sample_train = self.train_set.__getitem__(i)
+                except Exception:
+                    print("Exception processing dataset index", i, traceback.format_exc())
+                    continue
                 for k,v in sample_train.items():
                     # print(k,v)
                     if isinstance(sample_train[k], torch.Tensor):
