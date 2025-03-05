@@ -545,7 +545,19 @@ class Train_model_heatmap(Train_model_frontend):
         self.proxy_writer.add_scalar("SP_Loss", loss.item(), n_iter)
         self.proxy_writer.add_scalar("learning_rate", self.lr_scheduler.get_last_lr()[0], n_iter)
         if n_iter % self.config["proxyopt"]["log_param_iter"] == 0:
-            self.proxy_writer.add_text("Proxy Hype", str(self.train_set.proxy.return_param_value()), n_iter)
+            idx = 0
+            denormalized_hypes = self.train_set.proxy_isp_dataset.denormalize_hyp(self.train_set.proxy.return_param_value())
+            for param in self.train_set.proxy_isp_dataset.hyp_setting["parameters"]:
+                if param["type"] == "categorical":
+                    for bin in range(param["values"].__len__()):
+                        bin_name = param["values"][bin]
+                        self.proxy_writer.add_scalar("ISP_hyperparameters/" + param["name"]+f"|{bin_name}", denormalized_hypes[idx], n_iter)
+                        idx += 1
+                else:
+                    self.proxy_writer.add_scalar("ISP_hyperparameters/" + param["name"], denormalized_hypes[idx], n_iter)
+                    idx += 1
+            assert idx == len(denormalized_hypes)
+            # self.proxy_writer.add_text("Proxy Hype", str(self.train_set.proxy.return_param_value()), n_iter)
         if n_iter % self.config["proxyopt"]["save_image_iter"] == 0:
             current_hyp = self.train_set.proxy.return_param_value()
             current_hyp = self.train_set.proxy_isp_dataset.denormalize_hyp(current_hyp)
