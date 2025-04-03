@@ -21,6 +21,7 @@ from tensorboardX import SummaryWriter
 
 ## torch
 import torch
+import torchvision
 from torch.autograd import Variable
 import torch.backends.cudnn as cudnn
 import torch.optim
@@ -205,7 +206,8 @@ def export_detector_homoAdapt_gpu_online(input_dict, config, superpoint_frontend
     # basic setting
     task = config["data"]["dataset"]
     export_task = config["data"]["export_folder"]
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    gpu_id = "1" if torch.cuda.device_count() > 1 else "1"
+    device = torch.device(f"cuda:{gpu_id}" if torch.cuda.is_available() else "cpu")
 
     # logging.info("train on device: %s", device)
     # with open(os.path.join(output_dir, "config.yml"), "w") as f:
@@ -215,7 +217,7 @@ def export_detector_homoAdapt_gpu_online(input_dict, config, superpoint_frontend
     # )
 
     ## parameters
-    # b - nms, top_k from magicpoint_coco_export.yaml 
+    # b - nms, top_k from magicpoint_coco_export.yaml
     # nms_dist = config["model"]["nms"]  # 4
     # top_k = config["model"]["top_k"]
     top_k = 600
@@ -288,7 +290,7 @@ def export_detector_homoAdapt_gpu_online(input_dict, config, superpoint_frontend
 
     img = img.unsqueeze(0)
     mask_2D = mask_2D.unsqueeze(0)
-    
+
     img = img.transpose(0, 1)
     mask_2D = mask_2D.transpose(0, 1)
 
@@ -318,7 +320,9 @@ def export_detector_homoAdapt_gpu_online(input_dict, config, superpoint_frontend
     # pass through network
     open("temp_log/img_to_homadapt_shape", "w").write(str(f"img:{img.shape} mask_2D:{mask_2D.shape}"))
     with torch.no_grad():
+        torch.cuda.empty_cache()
         heatmap = fe.run(img, onlyHeatmap=True, train=False)
+        torch.cuda.empty_cache()
     outputs = combine_heatmap(heatmap, inv_homographies, mask_2D, device=device)
     pts = fe.getPtsFromHeatmap(outputs.detach().cpu().squeeze())  # (x,y, prob)
 

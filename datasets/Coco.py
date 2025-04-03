@@ -15,6 +15,7 @@ from utils.utils import homography_scaling_torch as homography_scaling
 from utils.utils import filter_points
 import glob
 import rawpy
+import torchvision
 import yaml
 
 class Coco(data.Dataset):
@@ -50,18 +51,18 @@ class Coco(data.Dataset):
         }
     }
 
-    def __init__(self, proxy, proxy_isp_dataset, export=False, transform=None, task='train', **config):
+    def __init__(self,config, proxy, proxy_isp_dataset, export=False, transform=None, task='train'):
 
         # b - proxyopt area
         self.proxy = proxy
-        self.adaptivepool2d = torch.nn.AdaptiveAvgPool2d((360, 480))
+        self.adaptivepool2d = torch.nn.AdaptiveAvgPool2d((960, 960))
         # self.adaptivepool2d = torch.nn.AdaptiveAvgPool2d((480, 640))
         # self.adaptivepool2d = torch.nn.AdaptiveAvgPool2d((240, 320))
         self.proxy_isp_dataset = proxy_isp_dataset
 
         # b - online homoadapt area
         # TODO: make configurable
-        # load homoadapt config 
+        # load homoadapt config
         homoadapt_config_path = "/home/boat/proxyISP/pytorch-superpoint/configs/magicpoint_coco_export.yaml"
         with open(homoadapt_config_path, "r") as f:
             self.homoadapt_config = yaml.safe_load(f)
@@ -71,6 +72,9 @@ class Coco(data.Dataset):
         nn_thresh = 0.7
         conf_thresh = self.homoadapt_config["model"]["detection_threshold"]
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+        magicpoint_gpu_id = "1" if torch.cuda.device_count() > 1 else "1"
+        magicpoint_device = torch.device(f"cuda:{magicpoint_gpu_id}" if torch.cuda.is_available() else "cpu")
         self.superpoint_homoadapt_frontend = SuperPointFrontend_torch(
                 config=self.homoadapt_config,
                 weights_path=path,
@@ -78,13 +82,14 @@ class Coco(data.Dataset):
                 conf_thresh=conf_thresh,
                 nn_thresh=nn_thresh,
                 cuda=False,
-                device=device,
+                device=magicpoint_device,
         )
 
         # Update config
         self.device = "cuda"
         self.config = self.default_config
-        self.config = dict_update(self.config, config)
+        self.config = dict_update(self.config, config["data"])
+        self.proxyopt_config = config["proxyopt"]
 
         self.transforms = transform
         self.action = 'train' if task == 'train' else 'val'
@@ -147,7 +152,7 @@ class Coco(data.Dataset):
         from utils.utils import compute_valid_mask
         from utils.photometric import ImgAugTransform, customizedTransform
         from utils.utils import inv_warp_image, inv_warp_image_batch, warp_points
-        
+
         self.sample_homography = sample_homography
         self.inv_warp_image = inv_warp_image
         self.inv_warp_image_batch = inv_warp_image_batch
@@ -216,22 +221,24 @@ class Coco(data.Dataset):
             # input_image = cv2.resize(input_image, (self.sizer[1], self.sizer[0]),
             #                          interpolation=cv2.INTER_AREA)
 
-            raw_image = rawpy.imread(path).raw_image
+            bayer = rawpy.imread(path).raw_image
 
             #TODO make configurable
-            raw_image = raw_image[540:2460, 1040:2960] # 1920, 1920
+            bayer = bayer[540:2460, 1040:2960] # 1920, 1920
             # raw_image = raw_image[1680: 1680 + 640, 1180:1180 + 640] # 640, 640
             # raw_image = raw_image[0:640, 0:640]
 
-            open("temp_log/raw_image", "w").write(str(raw_image.shape))
+            open("temp_log/raw_image", "w").write(str(bayer.shape))
 
             print("process raw with proxy hype:", self.proxy.return_param_value())
-            raw_image = self.proxy_isp_dataset.preprocess_raw(raw_image)
+            raw_image = self.proxy_isp_dataset.preprocess_raw(bayer)
 
             raw_image = raw_image.to("cuda")
 
             input_image = self.proxy(raw_image[None, :, :, :])[0]
             print("MEMORY after proxy forward pass:",  '{:,}'.format(torch.cuda.memory_allocated()))
+
+            proxy_output_image = input_image.cpu().detach()
 
             input_image = self.adaptivepool2d(input_image)
             # print("input_image", input_image)
@@ -250,7 +257,7 @@ class Coco(data.Dataset):
             # open("temp_log/after_reduce_image_shape", "w").write(str(input_image.shape))
 
             # input_image = input_image.astype('float32') / 255.0
-            return input_image
+            return input_image, proxy_output_image, bayer
 
         def _preprocess(image):
             if self.transforms is not None:
@@ -307,7 +314,7 @@ class Coco(data.Dataset):
             pnts = pnts.astype(int)
             labels[pnts[:, 1], pnts[:, 0]] = 1
             return labels
-            
+
 
         to_floatTensor = lambda x: torch.tensor(x).type(torch.FloatTensor)
 
@@ -320,7 +327,10 @@ class Coco(data.Dataset):
         input_homoadapt.update(sample)
         # image
         # img_o = _read_image(self.get_img_from_sample(sample))
-        img_o = _read_image(sample['image'])
+        img_o, proxy_output_image, bayer = _read_image(sample['image'])
+        input.update({'proxy_output_image': proxy_output_image})
+        input.update({'bayer': bayer})
+
         img_o = img_o.cpu()
         H, W = img_o.shape[0], img_o.shape[1]
         # img_o = img_o[:,:,None]
@@ -363,6 +373,15 @@ class Coco(data.Dataset):
 
             # images
             # warped_img = self.inv_warp_image_batch(img_aug.squeeze().repeat(homoAdapt_iter,1,1,1), inv_homographies, mode='bilinear').unsqueeze(0)
+            homo_image_input = img_o.squeeze()
+            if self.proxyopt_config["external_homoadapt_image"]["enable"]:
+                external_image_path = Path(self.proxyopt_config["external_homoadapt_image"]["external_image_path"])
+                homo_image_input = torchvision.io.read_image(
+                    str(external_image_path / ('.'.join(Path(sample['image']).name.split(".")[0:-1]) + ".jpg"))
+                ) / 255.0
+                homo_image_input = homo_image_input[:, 540:2460, 1040:2960] # 1920, 1920
+                homo_image_input = torchvision.transforms.Resize((H, W))(homo_image_input)
+                homo_image_input = homo_image_input.mean(dim = 0)
             warped_img = self.inv_warp_image_batch(img_o.squeeze().repeat(homoAdapt_iter,1,1,1), inv_homographies, mode='bilinear').unsqueeze(0)
             warped_img = warped_img.squeeze()
             # masks
@@ -380,15 +399,15 @@ class Coco(data.Dataset):
         if self.labels:
             # b - from homographic adaptation
             # pnts = np.load(sample['points'])['pts']
-            # b - do online homoadapt instead 
+            # b - do online homoadapt instead
             open("temp_log/do", "w").write("dooo")
             pnts = export_detector_homoAdapt_gpu_online(input_homoadapt, self.homoadapt_config, self.superpoint_homoadapt_frontend, )
             open("temp_log/homoadapt_pnts_online", "w").write(str(pnts))
-            
+
             # pnts = pnts.astype(int)
             # labels = np.zeros_like(img_o)
             # labels[pnts[:, 1], pnts[:, 0]] = 1
-            
+
             # b - create 2d boolean label map fram pnts
             labels = points_to_2D(pnts, H, W)
             labels_2D = to_floatTensor(labels[np.newaxis,:,:])
@@ -446,7 +465,7 @@ class Coco(data.Dataset):
 
                 # warp original image
                 warped_img = torch.tensor(img_o, dtype=torch.float32)
-                warped_img = self.inv_warp_image(warped_img.squeeze(), inv_homography, mode='bilinear').unsqueeze(0) 
+                warped_img = self.inv_warp_image(warped_img.squeeze(), inv_homography, mode='bilinear').unsqueeze(0)
                 if (self.enable_photo_train == True and self.action == 'train') or (self.enable_photo_val and self.action == 'val'):
                     warped_img = imgPhotometric(warped_img.numpy().squeeze()) # numpy array (H, W, 1)
                     warped_img = torch.tensor(warped_img, dtype=torch.float32)

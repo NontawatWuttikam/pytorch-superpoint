@@ -23,9 +23,10 @@ from utils.tools import dict_update
 # from utils.utils import pltImshow, saveImg
 from utils.utils import precisionRecall_torch
 # from utils.utils import save_checkpoint
-
+import torchvision
 from pathlib import Path
 from Train_model_frontend import Train_model_frontend
+import pickle
 
 def thd_img(img, thd=0.015):
     img[img < thd] = 0
@@ -65,13 +66,21 @@ class Train_model_heatmap(Train_model_frontend):
         "data": {"gaussian_label": {"enable": False}},
     }
 
-    def __init__(self, config, save_path=Path("."), device="cpu", verbose=False):
+    def __init__(self, config, proxyopt_checkpoint_object=None, save_path=Path("."), device="cpu", verbose=False,):
         # config
         # Update config
         print("Load Train_model_heatmap!!")
+        super().__init__(
+            config,
+            proxyopt_checkpoint_object,
+            save_path,
+            device,
+            verbose
+        )
 
         self.config = self.default_config
         self.config = dict_update(self.config, config)
+
         print("check config!!", self.config)
 
         # init parameters
@@ -81,6 +90,9 @@ class Train_model_heatmap(Train_model_frontend):
         self._eval = True
         self.cell_size = 8
         self.subpixel = False
+        self.train_proxy_from_it = config["train_proxy_from_it"]
+        self.accum_loss = 0
+        self.resize_image = torchvision.transforms.Resize((360 // 2, 720 // 2))
 
         self.max_iter = config["train_iter"]
 
@@ -223,7 +235,6 @@ class Train_model_heatmap(Train_model_frontend):
         # zero the parameter gradients
         optimizer = torch.optim.Adam([self.train_set.proxy.param_layer], self.lr_scheduler.get_last_lr()[0])
         # self.optimizer.zero_grad()
-        optimizer.zero_grad()
 
         # forward + backward + optimize
         # with torch.no_grad():
@@ -324,9 +335,15 @@ class Train_model_heatmap(Train_model_frontend):
             ze = torch.tensor([0]).to(self.device)
             loss_desc, positive_dist, negative_dist = ze, ze, ze
 
-        loss = loss_det + loss_det_warp
-        if lambda_loss > 0:
-            loss += lambda_loss * loss_desc
+        loss = 0
+        if self.config["proxyopt"]["loss"]["det_loss"]:
+            loss += loss_det
+        if self.config["proxyopt"]["loss"]["det_warp_loss"]:
+            loss += loss_det_warp
+        if self.config["proxyopt"]["loss"]["desc_loss"]:
+            loss += loss_desc * self.config["proxyopt"]["loss"]["desc_loss_lambda"]
+
+        loss /= self.config["proxyopt"]["grad_ac_step"]
 
         ##### try to minimize the error ######
         add_res_loss = False
@@ -387,25 +404,39 @@ class Train_model_heatmap(Train_model_frontend):
 
         self.input_to_imgDict(sample, self.images_dict)
 
+        proxy_gradient_to_log = None
         if train:
             print("Proxy Hype :", self.train_set.proxy.return_param_value())
+            self.accum_loss += loss.item()
             loss.backward()
             print("MEMORY after backward pass:",  '{:,}'.format(torch.cuda.memory_allocated()))
             print("Proxy Hype Grad: ", self.train_set.proxy.param_layer.grad)
             # self.optimizer.step()
-            optimizer.step()
-            print("Proxy Hype After Step:", self.train_set.proxy.return_param_value())
-            # param = self.train_set.proxy.return_param_value()
-            # self.train_set.proxy.load_param_layer(torch.tensor(param))
-            self.train_set.proxy.update_param()
-            print("DO STEP OPTIMIZER!!")
-            print("Clearing cuda cache and call gc collect()")
-            torch.cuda.empty_cache()
-            gc.collect()
+            if n_iter % self.config["proxyopt"]["grad_ac_step"] == 0:
+                proxy_gradient_to_log = self.train_set.proxy.param_layer.grad.cpu().detach().numpy()
+                optimizer.step()
+                optimizer.zero_grad()
+                print("Proxy Hype After Step:", self.train_set.proxy.return_param_value())
+                # param = self.train_set.proxy.return_param_value()
+                # self.train_set.proxy.load_param_layer(torch.tensor(param))
+                self.train_set.proxy.update_param()
+                print(f"DO STEP OPTIMIZER at iter {n_iter}")
+                print("Clearing cuda cache and call gc collect()")
+                torch.cuda.empty_cache()
+                gc.collect()
+
+
+                print("Loss :", self.accum_loss)
+                self.proxy_writer.add_scalar("Loss/Total_Loss", self.accum_loss, n_iter)
+                self.proxy_writer.add_scalar("Loss/Desc_Loss", loss_desc, n_iter)
+                self.proxy_writer.add_scalar("Loss/Det_Loss", loss_det, n_iter)
+                self.proxy_writer.add_scalar("Loss/Det_warp_Loss", loss_det_warp, n_iter)
+                self.proxy_writer.add_scalar("learning_rate", self.lr_scheduler.get_last_lr()[0], n_iter)
+                self.accum_loss = 0
 
         if n_iter > 0 and n_iter % self.config["proxyopt"]["lr_scheduler_iter"] == 0:
             self.lr_scheduler.step()
-            
+
 
         if n_iter % tb_interval == 0 or task == "val":
             logging.info(
@@ -541,9 +572,6 @@ class Train_model_heatmap(Train_model_frontend):
         self.tb_scalar_dict(self.scalar_dict, task)
 
         # logging - BOAT
-        print("Loss final :", loss.item())
-        self.proxy_writer.add_scalar("SP_Loss", loss.item(), n_iter)
-        self.proxy_writer.add_scalar("learning_rate", self.lr_scheduler.get_last_lr()[0], n_iter)
         if n_iter % self.config["proxyopt"]["log_param_iter"] == 0:
             idx = 0
             denormalized_hypes = self.train_set.proxy_isp_dataset.denormalize_hyp(self.train_set.proxy.return_param_value())
@@ -552,9 +580,11 @@ class Train_model_heatmap(Train_model_frontend):
                     for bin in range(param["values"].__len__()):
                         bin_name = param["values"][bin]
                         self.proxy_writer.add_scalar("ISP_hyperparameters/" + param["name"]+f"|{bin_name}", denormalized_hypes[idx], n_iter)
+                        self.proxy_writer.add_scalar("grad/" + param["name"]+f"|{bin_name}", proxy_gradient_to_log[idx], n_iter)
                         idx += 1
                 else:
                     self.proxy_writer.add_scalar("ISP_hyperparameters/" + param["name"], denormalized_hypes[idx], n_iter)
+                    self.proxy_writer.add_scalar("grad/" + param["name"], proxy_gradient_to_log[idx], n_iter)
                     idx += 1
             assert idx == len(denormalized_hypes)
             # self.proxy_writer.add_text("Proxy Hype", str(self.train_set.proxy.return_param_value()), n_iter)
@@ -575,19 +605,38 @@ class Train_model_heatmap(Train_model_frontend):
             stitched_image = torch.cat((initial_hyp_image, current_hyp_image), dim=2)
 
             self.proxy_writer.add_image("image (initial, current)", stitched_image, n_iter)
+
+            train_image = sample["image"][0]
+            train_image_warp = sample["warped_img"][0]
+
+            stitched_train_image = torch.cat((train_image, train_image_warp), dim=2)
+            stitched_train_image = self.resize_image(stitched_train_image)
+            self.proxy_writer.add_image("training image", stitched_train_image, n_iter)
+
         # print("self.save_path", self.save_path)
         # saving checkpoint - BOAT
         if n_iter % self.config["proxyopt"]["save_hype_iter"] == 0:
             proxyopt_checkpoint_path = Path(self.save_path).parent / "proxyopt_checkpoints"
             os.makedirs(proxyopt_checkpoint_path, exist_ok = True)
             params = self.train_set.proxy.return_param_value()
-            np.save(str(proxyopt_checkpoint_path / f"hype_checkpoint_{n_iter}.npy"), params)
+            lr_scheduler_state_dict = self.lr_scheduler.state_dict()
+            checkpoint_path = str(proxyopt_checkpoint_path / f"checkpoint_{n_iter}.pkl")
+            with open(checkpoint_path, "wb") as f:
+                obj = {
+                    "proxy_hype":params,
+                    "lr_scheduler_state_dict": lr_scheduler_state_dict,
+                    "optimizer_state_dict": optimizer.state_dict(),
+                    "lr_scheduler_class": self.lr_scheduler.__class__.__name__,
+                    "optimizer_class": optimizer.state_dict(),
+                    "train_proxy_from_it": n_iter
+                }
+                pickle.dump(obj, f)
 
         return loss.item()
 
     def heatmap_to_nms(self, images_dict, heatmap, name):
         """
-        return: 
+        return:
             heatmap_nms_batch: np [batch, H, W]
         """
         from utils.var_dim import toNumpy
@@ -706,7 +755,7 @@ class Train_model_heatmap(Train_model_frontend):
     @staticmethod
     def flatten_64to1(semi, cell_size=8):
         """
-        input: 
+        input:
             semi: tensor[batch, cell_size*cell_size, Hc, Wc]
             (Hc = H/8)
         outpus:

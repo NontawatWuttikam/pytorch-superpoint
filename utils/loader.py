@@ -47,7 +47,7 @@ def dataLoader(config, proxy, proxy_isp_dataset, dataset='syn', warp_input=False
     training_params = config.get('training', {})
     workers_train = training_params.get('workers_train', 1) # 16
     workers_val   = training_params.get('workers_val', 1) # 16
-        
+
     logging.info(f"workers_train: {workers_train}, workers_val: {workers_val}")
     data_transforms = {
         'train': transforms.Compose([
@@ -65,18 +65,18 @@ def dataLoader(config, proxy, proxy_isp_dataset, dataset='syn', warp_input=False
     print(f"dataset: {dataset}")
 
     train_set = Dataset(
+        config,
         proxy,
         proxy_isp_dataset,
         transform=data_transforms['train'],
         task = 'train', # task is for seperate train val image dir loading
-        **config['data'],
     )
     val_set = Dataset(
+        config,
         proxy,
         proxy_isp_dataset,
         transform=data_transforms['train'],
         task = 'val',
-        **config['data'],
     )
     train_loader = None
     val_loader = None

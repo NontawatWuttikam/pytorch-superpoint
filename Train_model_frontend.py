@@ -69,7 +69,7 @@ class Train_model_frontend(object):
         "model": {"subpixel": {"enable": False}},
     }
 
-    def __init__(self, config, save_path=Path("."), device="cpu", verbose=False):
+    def __init__(self, config, proxyopt_checkpoint_object=None, save_path=Path("."), device="cpu", verbose=False):
         """
         ## default dimension:
             heatmap: torch (batch_size, H, W, 1)
@@ -88,6 +88,8 @@ class Train_model_frontend(object):
         print("Load Train_model_frontend!!")
         self.config = self.default_config
         self.config = dict_update(self.config, config)
+        self.train_proxy_from_it = self.config["train_proxy_from_it"]
+        self.proxyopt_checkpoint_object = proxyopt_checkpoint_object
         print("check config!!", self.config)
 
         # init parameters
@@ -197,7 +199,25 @@ class Train_model_frontend(object):
 
         # BOAT - warning!! will not be used since we create new optimizer everytime for each iteration in train_val_sample in train_model_heatmap!!
         optimizer = optim.Adam([self.train_set.proxy.param_layer], lr=self.config["proxyopt"]["learning_rate"])
-        lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, 20, eta_min=0, last_epoch=-1)
+        scheduler_choice = self.config["proxyopt"]["scheduler"]
+        if scheduler_choice == "cosine":
+            lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, 800, eta_min=0, last_epoch=-1)
+        elif scheduler_choice == "exponential":
+            # Compute decay rate
+            initial_lr = self.config["proxyopt"]["learning_rate"]
+            final_lr = self.config["proxyopt"]["scheduler_param"]["final_lr"]
+            total_steps = self.config["proxyopt"]["scheduler_param"]["total_steps"]
+            gamma = (final_lr / initial_lr) ** (1 / total_steps)
+            lr_scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=gamma)
+        else:
+            raise Exception("please choose correct lr scheduler in config")
+        # lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, 0.95, last_epoch=-1)
+        # lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 1, gamma=0.9, last_epoch=-1)
+
+        # load from proxyopt checkpoint
+        if self.proxyopt_checkpoint_object is not None:
+            optimizer.load_state_dict(self.proxyopt_checkpoint_object["optimizer_state_dict"])
+            lr_scheduler.load_state_dict(self.proxyopt_checkpoint_object["lr_scheduler_state_dict"])
 
         n_iter = 0
         ## new model or load pretrained
@@ -221,7 +241,8 @@ class Train_model_frontend(object):
 
         self.net = net
         self.optimizer = optimizer
-        self.n_iter = setIter(n_iter)
+        # self.n_iter = setIter(n_iter)
+        self.n_iter = self.train_proxy_from_it # ignore sp iter and use proxy iter instead
         self.lr_scheduler = lr_scheduler
         pass
 

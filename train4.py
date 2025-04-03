@@ -13,6 +13,7 @@ from ISP_tools.ProxyISPDataset import ProxyISPDataset, EXPERIMENT_OUTPUT_PATH
 from proxy_utils import extract_iteration
 from model import U_Net
 from pathlib import Path
+import numpy as np
 # from torch.utils.tensorboard import SummaryWriter
 
 import argparse
@@ -56,9 +57,13 @@ def train_base(config, output_dir, args):
 
 def train_joint(config, output_dir, args):
     torch.multiprocessing.set_start_method('spawn')
-    
-    train_config_path = config["proxyopt"]["config_path"]
-    proxy, proxy_isp_dataset = load_proxy_model_and_dataset(train_config_path)
+
+    proxyopt_config = config["proxyopt"]
+    proxy, proxy_isp_dataset, proxyopt_checkpoint_object = load_proxy_model_and_dataset(proxyopt_config, args)
+    config["train_proxy_from_it"] = 0
+    if proxyopt_checkpoint_object is not None:
+        config["train_proxy_from_it"] = proxyopt_checkpoint_object["train_proxy_from_it"]
+    print("train_proxy_from_it", config["train_proxy_from_it"])
 
     proxy_writer = SummaryWriter(f"logs/{args.exper_name}/logs")
 
@@ -69,13 +74,13 @@ def train_joint(config, output_dir, args):
     # from utils.utils import saveImg
     torch.set_default_tensor_type(torch.FloatTensor)
     task = config['data']['dataset']
-    
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     logging.info('train on device: %s', device)
     with open(os.path.join(output_dir, 'config.yml'), 'w') as f:
         yaml.dump(config, f, default_flow_style=False)
     # writer = SummaryWriter(getWriterPath(task=args.command, date=True))
-    writer = SummaryWriter(getWriterPath(task=args.command, 
+    writer = SummaryWriter(getWriterPath(task=args.command,
         exper_name=args.exper_name, date=True))
     ## save data
     save_path = get_save_path(output_dir)
@@ -93,7 +98,7 @@ def train_joint(config, output_dir, args):
     from utils.loader import get_module
     train_model_frontend = get_module('', config['front_end_model'])
 
-    train_agent = train_model_frontend(config, save_path=save_path, device=device)
+    train_agent = train_model_frontend(config, save_path=save_path, device=device, proxyopt_checkpoint_object = proxyopt_checkpoint_object)
 
     # writer from tensorboard
     train_agent.writer = writer
@@ -110,7 +115,7 @@ def train_joint(config, output_dir, args):
     # freeze sp model - BOAT
     for parameter in train_agent.net.parameters():
         parameter.requires_grad = False
-    
+
     # remove dataParallel - BOAT
     # if dataParallel, TODO: plse go fix dataParallel to optimize proxy instead of superpoint - BOAT
     # train_agent.dataParallel()
@@ -123,27 +128,45 @@ def train_joint(config, output_dir, args):
         train_agent.saveModel()
         pass
 
-def load_proxy_model_and_dataset(train_config_path):
+def load_proxy_model_and_dataset(proxyopt_config, args):
     PROXYOPT_BASE_PATH = Path("../ProxyOpt/")
-    with open(train_config_path, "r") as f:
+    with open(proxyopt_config["config_path"], "r") as f:
         yaml_dict = yaml.safe_load(f)
 
     config = yaml_dict["config"]
     openisp_config = yaml_dict["openisp_config"]
     hyp_setting = yaml_dict["hyp_setting"]
 
-    stage2_output_dir = Path("proxyopt_output") / (config["experiment_name"] + "s1")
+    stage2_output_dir = Path("logs") / args.exper_name
 
-    if not os.path.exists(stage2_output_dir):
-        os.makedirs(stage2_output_dir)
-        os.makedirs(stage2_output_dir / "logs")
-        os.makedirs(stage2_output_dir / "checkpoints")
+    loaded_param_layer = None
+    proxyopt_checkpoint_object = None
 
-    latest_stage2_obj = None
-    checkpoints = list(os.scandir(stage2_output_dir / "checkpoints"))
-    if checkpoints.__len__() > 0:
-        latest_stage2_checkpoint_path = max(checkpoints, key = lambda x: int(x.name.split("_")[-1].split("it")[0]))
-        latest_stage2_obj = torch.load(latest_stage2_checkpoint_path.path)
+    checkpoint_dir = stage2_output_dir / "proxyopt_checkpoints"
+    if os.path.exists(checkpoint_dir):
+        checkpoints = list(os.scandir(checkpoint_dir))
+        checkpoints = sorted(checkpoints, key = lambda x: int(x.name.split("_")[-1].split(".")[0]))
+        checkpoints = checkpoints[::-1]
+        print("checkpoints", [p.name for p in checkpoints])
+        load_attempt = 0 # in case of corrupt file
+        max_attempt = 5
+        load_success = False
+        if checkpoints.__len__() > 0:
+            import pickle
+            while load_attempt <= max_attempt and load_attempt < len(checkpoints) and not load_success:
+                try:
+                    checkpoint_path = checkpoints[load_attempt]
+                    print("attempt loading", checkpoint_path.path)
+                    with open(checkpoint_path.path, "rb") as f:
+                        proxyopt_checkpoint_object = pickle.load(f)
+                    loaded_param_layer = proxyopt_checkpoint_object["proxy_hype"]
+                    train_proxy_from_it = int(checkpoint_path.name.split("_")[-1].split(".")[0])
+                    load_success = True
+                except Exception as e:
+                    print("error", e)
+                    load_attempt += 1
+        if load_attempt == max_attempt:
+            raise Exception(f"apptemted to load checkpoint exceed {load_attempt} times! which were failed!")
 
     output_dir = PROXYOPT_BASE_PATH / EXPERIMENT_OUTPUT_PATH / config["experiment_name"]
     checkpoint_dir = output_dir / "checkpoints"
@@ -155,7 +178,7 @@ def load_proxy_model_and_dataset(train_config_path):
 
     latest_obj = torch.load(output_dir / "checkpoints" / latest_file)
 
-    config = latest_obj["config"]
+    # config = latest_obj["config"]
 
     # Model and dataset initialization
     in_channels = 1
@@ -167,6 +190,11 @@ def load_proxy_model_and_dataset(train_config_path):
         # "target_image": ["/home/boat/proxyISP/data/s21fe_dataset/20240117_182706.dng"],
         "proxyopt_base_path": "/home/boat/proxyISP/ProxyOpt/"
     }
+
+    if "target_images" in proxyopt_config:
+        raw_images = [str(p) for p in Path(proxyopt_config["target_images"]).rglob("*.dng")]
+        additional_conf["target_image"] = raw_images
+        print(additional_conf["target_image"])
 
     dataset = ProxyISPDataset(config, openisp_config, hyp_setting, additional_conf)
 
@@ -183,13 +211,13 @@ def load_proxy_model_and_dataset(train_config_path):
     start_hyp = dataset.get_original_hyp(True, True, add_eps = False)
     net.load_param_layer(start_hyp)
 
-    if latest_stage2_obj is not None:
-        net.param_layer = latest_stage2_obj["param_layer"]
+    if loaded_param_layer is not None:
+        net.param_layer = torch.tensor(loaded_param_layer).to("cuda")
         net.param_layer.requires_grad = True
 
     net.set_requires_param_layer_grad(True)
 
-    return net, dataset
+    return net, dataset, proxyopt_checkpoint_object
 
 if __name__ == '__main__':
     # global var

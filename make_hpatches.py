@@ -12,7 +12,7 @@ sys.path.insert(0, "../fast-openISP/")
 sys.path.insert(0, "../ProxyOpt/pytorch-msssim/")
 from ISP_tools.ProxyISPDataset import ProxyISPDataset, EXPERIMENT_OUTPUT_PATH
 
-def process_dataset(source_dir, target_dir, train_config_path, hyp=None, mtx=None, dist=None):
+def process_dataset(source_dir, target_dir, train_config_path, hpatch_prefix, hyp=None, mtx=None, dist=None):
     with open(train_config_path, "r") as f:
         yaml_dict = yaml.safe_load(f)
 
@@ -38,6 +38,7 @@ def process_dataset(source_dir, target_dir, train_config_path, hyp=None, mtx=Non
         if not sequence.is_dir():
             continue
 
+        if sequence.name.split("_")[0] != hpatch_prefix and hpatch_prefix != "": continue
         target_sequence = target_path / sequence.name
         target_sequence.mkdir(parents=True, exist_ok=True)
 
@@ -67,13 +68,17 @@ if __name__ == "__main__":
     train_config_path = sys.argv[1]
 
     hyp_path = sys.argv[2]
+
+    hpatch_prefix = sys.argv[3]
     if hyp_path == "original":
         hyp = None
     else:
-        hyp = np.load(hyp_path)
+        import pickle
+        with open(hyp_path, "rb") as f:
+            hyp = pickle.load(f)["proxy_hype"]
 
     # Example camera matrix and distortion coefficients (should be replaced with actual values)
     cam_param = np.load("../ProxyOpt/camera_parameters/s21fe_main_3000x4000/CalibrationMatrix_college_cpt.npz")
     mtx = cam_param["Camera_matrix"]
     dist = cam_param["distCoeff"]  # Placeholder values
-    process_dataset(source_directory, target_directory, train_config_path, hyp, mtx, dist)
+    process_dataset(source_directory, target_directory, train_config_path, hpatch_prefix, hyp, mtx, dist)
