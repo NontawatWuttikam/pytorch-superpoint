@@ -14,11 +14,11 @@ data:
 
     cache_in_memory: false
     preprocessing:
-        resize: [240, 320]
+        resize: [240, 320] # IGNORED in proxyopt
         # resize: [480, 640]
     augmentation:
         photometric:
-            enable: true
+            enable: false
             primitives: [
                 'random_brightness', 'random_contrast', 'additive_speckle_noise',
                 'additive_gaussian_noise', 'additive_shade', 'motion_blur']
@@ -40,7 +40,7 @@ data:
             rotation: true
             scaling: true
             perspective: true
-            scaling_amplitude: 0.2
+            scaling_amplitude: 0.3
             perspective_amplitude_x: 0.2
             perspective_amplitude_y: 0.2
             patch_ratio: 0.85
@@ -50,7 +50,7 @@ data:
     # b - do homoadapt online, copy from magicpoint_coco_export.yaml
     homography_adaptation:
         enable: true
-        num: 100 # 100
+        num: 20 # 100
         aggregation: 'sum'
         filter_counts: 0
         homographies:
@@ -109,13 +109,27 @@ model:
         # loss_func: 'subpixel_loss_no_argmax' # subpixel_loss, subpixel_loss_no_argmax
 
 proxyopt:
-    config_path: '/home/boat/proxyISP/ProxyOpt/train_configs/v13.yaml'
-    learning_rate: 0.0005
+    config_path: '/home/boat/proxyISP/ProxyOpt/train_configs/v15.yaml'
+    target_images: /mnt/ssd2tb/boat/thesis/s21fe_dataset/raw/well-lit
+    external_homoadapt_image: # for debugging only (assume "external_image_path" contains identical image names as "target_images" with .jpeg extension )
+        enable: true
+        external_image_path: /mnt/ssd2tb/boat/thesis/s21fe_dataset/processed/well-lit
+    learning_rate: 0.005
     save_image_iter: 100
     log_param_iter: 1
     save_hype_iter: 100
-    lr_scheduler_iter: 1000
-    
+    lr_scheduler_iter: 1
+    scheduler: "exponential"
+    scheduler_param:
+        final_lr: 0.00005
+        total_steps: 5000
+    grad_ac_step: 1
+    loss:
+        desc_loss: true
+        det_loss: true
+        det_warp_loss: true
+        desc_loss_lambda: 1.0
+
 retrain: True # set true for new model
 reset_iter: True # set true to set the iteration number to 0
 train_iter: 200000 # 170000
@@ -126,7 +140,7 @@ tensorboard_interval: 200000 # 200
 save_interval: 200000 # 2000
 validation_size: 5
 
-pretrained: 
+pretrained:
 
 
 
