@@ -158,6 +158,21 @@ class Train_model_heatmap(Train_model_frontend):
     #     self.n_iter = setIter(n_iter)
     #     pass
 
+    def image_entropy(self, img, bins=256):
+        B, C, H, W = img.shape
+        img = img.view(B, -1)  # Flatten each image to shape (B, C*H*W)
+
+        histograms = []
+        for i in range(B):
+            hist = torch.histc(img[i], bins=bins, min=0.0, max=1.0)
+            histograms.append(hist)
+        histograms = torch.stack(histograms).to(img.device)  # (B, bins)
+
+        histograms = histograms / (histograms.sum(dim=1, keepdim=True) + 1e-8)
+
+        entropy = -torch.sum(histograms * torch.log2(histograms + 1e-8), dim=1)  # (B,)
+        return entropy
+
     def detector_loss(self, input, target, mask=None, loss_type="softmax"):
         """
         # apply loss on detectors, default is softmax
@@ -336,12 +351,19 @@ class Train_model_heatmap(Train_model_frontend):
             loss_desc, positive_dist, negative_dist = ze, ze, ze
 
         loss = 0
+        entropy_loss = None
         if self.config["proxyopt"]["loss"]["det_loss"]:
             loss += loss_det
         if self.config["proxyopt"]["loss"]["det_warp_loss"]:
             loss += loss_det_warp
         if self.config["proxyopt"]["loss"]["desc_loss"]:
             loss += loss_desc * self.config["proxyopt"]["loss"]["desc_loss_lambda"]
+        if self.config["proxyopt"]["loss"]["entropy_loss"]:
+            entropy_loss = -1 * self.image_entropy(img).squeeze() * self.config["proxyopt"]["loss"]["entropy_loss_beta"]
+            print("entropy_loss", entropy_loss)
+            print("loss", loss)
+            loss += entropy_loss
+
 
         loss /= self.config["proxyopt"]["grad_ac_step"]
 
@@ -412,7 +434,7 @@ class Train_model_heatmap(Train_model_frontend):
             print("MEMORY after backward pass:",  '{:,}'.format(torch.cuda.memory_allocated()))
             print("Proxy Hype Grad: ", self.train_set.proxy.param_layer.grad)
             # self.optimizer.step()
-            if n_iter % self.config["proxyopt"]["grad_ac_step"] == 0:
+            if (n_iter + 1) % self.config["proxyopt"]["grad_ac_step"] == 0:
                 proxy_gradient_to_log = self.train_set.proxy.param_layer.grad.cpu().detach().numpy()
                 optimizer.step()
                 optimizer.zero_grad()
@@ -431,6 +453,8 @@ class Train_model_heatmap(Train_model_frontend):
                 self.proxy_writer.add_scalar("Loss/Desc_Loss", loss_desc, n_iter)
                 self.proxy_writer.add_scalar("Loss/Det_Loss", loss_det, n_iter)
                 self.proxy_writer.add_scalar("Loss/Det_warp_Loss", loss_det_warp, n_iter)
+                if entropy_loss is not None:
+                    self.proxy_writer.add_scalar("Loss/Entropy_loss", entropy_loss.item(), n_iter)
                 self.proxy_writer.add_scalar("learning_rate", self.lr_scheduler.get_last_lr()[0], n_iter)
                 self.accum_loss = 0
 
@@ -580,11 +604,13 @@ class Train_model_heatmap(Train_model_frontend):
                     for bin in range(param["values"].__len__()):
                         bin_name = param["values"][bin]
                         self.proxy_writer.add_scalar("ISP_hyperparameters/" + param["name"]+f"|{bin_name}", denormalized_hypes[idx], n_iter)
-                        self.proxy_writer.add_scalar("grad/" + param["name"]+f"|{bin_name}", proxy_gradient_to_log[idx], n_iter)
+                        if proxy_gradient_to_log is not None:
+                            self.proxy_writer.add_scalar("grad/" + param["name"]+f"|{bin_name}", proxy_gradient_to_log[idx], n_iter)
                         idx += 1
                 else:
                     self.proxy_writer.add_scalar("ISP_hyperparameters/" + param["name"], denormalized_hypes[idx], n_iter)
-                    self.proxy_writer.add_scalar("grad/" + param["name"], proxy_gradient_to_log[idx], n_iter)
+                    if proxy_gradient_to_log is not None:
+                        self.proxy_writer.add_scalar("grad/" + param["name"], proxy_gradient_to_log[idx], n_iter)
                     idx += 1
             assert idx == len(denormalized_hypes)
             # self.proxy_writer.add_text("Proxy Hype", str(self.train_set.proxy.return_param_value()), n_iter)

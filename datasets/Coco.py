@@ -55,7 +55,7 @@ class Coco(data.Dataset):
 
         # b - proxyopt area
         self.proxy = proxy
-        self.adaptivepool2d = torch.nn.AdaptiveAvgPool2d((960, 960))
+        self.adaptivepool2d = torch.nn.AdaptiveAvgPool2d(config["proxyopt"]['pooled_size'])
         # self.adaptivepool2d = torch.nn.AdaptiveAvgPool2d((480, 640))
         # self.adaptivepool2d = torch.nn.AdaptiveAvgPool2d((240, 320))
         self.proxy_isp_dataset = proxy_isp_dataset
