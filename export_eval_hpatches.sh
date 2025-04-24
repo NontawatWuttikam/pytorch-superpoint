@@ -4,11 +4,12 @@
 proxyoptConfig="../ProxyOpt/train_configs/v16.1.yaml"
 
 # optimized hype path, specify "original" if wanted original hype rather than optimized hype according to proxyopt config file.
-stage2Checkpoint="/home/boat/proxyISP/pytorch-superpoint/logs/train_v16.1_welllit_lr0.0005_entropyLoss/proxyopt_checkpoints/checkpoint_7800.pkl"
+stage2Checkpoint="/home/boat/proxyISP/pytorch-superpoint/logs/train_v16.1_lowlight_lr0.0005/proxyopt_checkpoints/checkpoint_5000.pkl"
+extraSuffix="_eval3"
 # stage2Checkpoint="original"
 
 # hpatches sequence prefix
-hpatchesSeqPrefix="wl" # ll, wl, sl
+hpatchesSeqPrefix="ll" # ll, wl, sl
 
 # Determine dataName based on stage2Checkpoint
 if [ "$stage2Checkpoint" == "original" ]; then
@@ -21,8 +22,8 @@ else
     dataName="eval_${hpatchesSeqPrefix}_${parent_dir}_${step_number}"
 fi
 
+dataName="${dataName}${extraSuffix}"
 echo "Using dataName: $dataName"
-
 # Clean up old dataset
 rm -rf datasets/HPatches
 

@@ -1,5 +1,5 @@
 #!/bin/bash
-EXPER=train_v16.1_welllit_lr0.0005_entropyLoss
+EXPER=train_v16.1_sunlit_lr0.0005
 CONFIG=configs/superpoint_coco_train_heatmap_proxyopt.yaml
 
 # mkdir logs/$EXPER
