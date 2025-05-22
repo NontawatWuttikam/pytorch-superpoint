@@ -248,7 +248,10 @@ class Train_model_heatmap(Train_model_frontend):
             mat_H, mat_H_inv = sample["homographies"], sample["inv_homographies"]
 
         # zero the parameter gradients
-        optimizer = torch.optim.Adam([self.train_set.proxy.param_layer], self.lr_scheduler.get_last_lr()[0])
+        learning_rate = self.config["proxyopt"]["learning_rate"]
+        if self.lr_scheduler is not None:
+            learning_rate = self.lr_scheduler.get_last_lr()[0]
+        optimizer = torch.optim.Adam([self.train_set.proxy.param_layer], learning_rate)
         # self.optimizer.zero_grad()
 
         # forward + backward + optimize
@@ -450,15 +453,15 @@ class Train_model_heatmap(Train_model_frontend):
 
                 print("Loss :", self.accum_loss)
                 self.proxy_writer.add_scalar("Loss/Total_Loss", self.accum_loss, n_iter)
-                self.proxy_writer.add_scalar("Loss/Desc_Loss", loss_desc, n_iter)
+                self.proxy_writer.add_scalar("Loss/Desc_Loss", loss_desc.item() * self.config["proxyopt"]["loss"]["desc_loss_lambda"], n_iter)
                 self.proxy_writer.add_scalar("Loss/Det_Loss", loss_det, n_iter)
                 self.proxy_writer.add_scalar("Loss/Det_warp_Loss", loss_det_warp, n_iter)
                 if entropy_loss is not None:
                     self.proxy_writer.add_scalar("Loss/Entropy_loss", entropy_loss.item(), n_iter)
-                self.proxy_writer.add_scalar("learning_rate", self.lr_scheduler.get_last_lr()[0], n_iter)
+                self.proxy_writer.add_scalar("learning_rate", learning_rate, n_iter)
                 self.accum_loss = 0
 
-        if n_iter > 0 and n_iter % self.config["proxyopt"]["lr_scheduler_iter"] == 0:
+        if n_iter > 0 and n_iter % self.config["proxyopt"]["lr_scheduler_iter"] == 0 and self.lr_scheduler is not None:
             self.lr_scheduler.step()
 
 
@@ -645,14 +648,18 @@ class Train_model_heatmap(Train_model_frontend):
             proxyopt_checkpoint_path = Path(self.save_path).parent / "proxyopt_checkpoints"
             os.makedirs(proxyopt_checkpoint_path, exist_ok = True)
             params = self.train_set.proxy.return_param_value()
-            lr_scheduler_state_dict = self.lr_scheduler.state_dict()
+            lr_scheduler_state_dict = None
+            lr_scheduler_class = None
+            if self.lr_scheduler is not None:
+                lr_scheduler_state_dict = self.lr_scheduler.state_dict()
+                lr_scheduler_class = self.lr_scheduler.__class__.__name__
             checkpoint_path = str(proxyopt_checkpoint_path / f"checkpoint_{n_iter}.pkl")
             with open(checkpoint_path, "wb") as f:
                 obj = {
                     "proxy_hype":params,
                     "lr_scheduler_state_dict": lr_scheduler_state_dict,
                     "optimizer_state_dict": optimizer.state_dict(),
-                    "lr_scheduler_class": self.lr_scheduler.__class__.__name__,
+                    "lr_scheduler_class": lr_scheduler_class,
                     "optimizer_class": optimizer.state_dict(),
                     "train_proxy_from_it": n_iter
                 }

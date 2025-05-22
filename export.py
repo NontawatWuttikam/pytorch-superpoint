@@ -206,7 +206,8 @@ def export_detector_homoAdapt_gpu_online(input_dict, config, superpoint_frontend
     # basic setting
     task = config["data"]["dataset"]
     export_task = config["data"]["export_folder"]
-    gpu_id = "1" if torch.cuda.device_count() > 1 else "1"
+    print("device count: ", torch.cuda.device_count())
+    gpu_id = "1" if torch.cuda.device_count() > 1 else "0"
     device = torch.device(f"cuda:{gpu_id}" if torch.cuda.is_available() else "cpu")
 
     # logging.info("train on device: %s", device)

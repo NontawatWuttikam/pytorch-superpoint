@@ -29,7 +29,7 @@ from utils.utils import precisionRecall_torch
 from utils.utils import save_checkpoint
 
 from pathlib import Path
-
+import sys
 
 def thd_img(img, thd=0.015):
     """
@@ -197,8 +197,8 @@ class Train_model_frontend(object):
         # optimize proxy instead of superpoint - BOAT
         # optimizer = self.adamOptim(net, lr=self.config["model"]["learning_rate"])
 
-        # BOAT - warning!! will not be used since we create new optimizer everytime for each iteration in train_val_sample in train_model_heatmap!!
-        optimizer = optim.Adam([self.train_set.proxy.param_layer], lr=self.config["proxyopt"]["learning_rate"])
+        # BOAT - warning!! optimizer will not be used since we create new optimizer everytime for each iteration in train_val_sample in train_model_heatmap!!
+        optimizer = self.adamOptim(net, self.config["model"]["learning_rate"])
         scheduler_choice = self.config["proxyopt"]["scheduler"]
         if scheduler_choice == "cosine":
             lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, 800, eta_min=0, last_epoch=-1)
@@ -209,6 +209,8 @@ class Train_model_frontend(object):
             total_steps = self.config["proxyopt"]["scheduler_param"]["total_steps"]
             gamma = (final_lr / initial_lr) ** (1 / total_steps)
             lr_scheduler = optim.lr_scheduler.ExponentialLR(optimizer, gamma=gamma)
+        elif scheduler_choice is None or scheduler_choice.lower() == "none":
+            lr_scheduler = None
         else:
             raise Exception("please choose correct lr scheduler in config")
         # lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, 0.95, last_epoch=-1)
@@ -216,13 +218,15 @@ class Train_model_frontend(object):
 
         # load from proxyopt checkpoint
         if self.proxyopt_checkpoint_object is not None:
-            optimizer.load_state_dict(self.proxyopt_checkpoint_object["optimizer_state_dict"])
-            lr_scheduler.load_state_dict(self.proxyopt_checkpoint_object["lr_scheduler_state_dict"])
+            if self.proxyopt_checkpoint_object["lr_scheduler_state_dict"] is not None:
+                lr_scheduler.load_state_dict(self.proxyopt_checkpoint_object["lr_scheduler_state_dict"])
 
         n_iter = 0
         ## new model or load pretrained
         if self.config["retrain"] == True:
             logging.info("New model")
+            logging.info("not allow training because retrain is set to True by BOAT")
+            exit(0)
             pass
         else:
             path = self.config["pretrained"]

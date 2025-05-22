@@ -73,7 +73,7 @@ class Coco(data.Dataset):
         conf_thresh = self.homoadapt_config["model"]["detection_threshold"]
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-        magicpoint_gpu_id = "1" if torch.cuda.device_count() > 1 else "1"
+        magicpoint_gpu_id = "1" if torch.cuda.device_count() > 1 else "0"
         magicpoint_device = torch.device(f"cuda:{magicpoint_gpu_id}" if torch.cuda.is_available() else "cpu")
         self.superpoint_homoadapt_frontend = SuperPointFrontend_torch(
                 config=self.homoadapt_config,

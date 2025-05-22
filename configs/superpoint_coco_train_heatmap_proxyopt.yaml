@@ -111,7 +111,8 @@ model:
 proxyopt:
     config_path: '/home/boat/proxyISP/ProxyOpt/train_configs/v16.1.yaml'
     # target_images: /mnt/ssd2tb/boat/thesis/s21fe_dataset/raw/well-lit
-    target_images: /mnt/ssd2tb/boat/thesis/s21fe_dataset/raw/sunlit
+    # target_images: /mnt/ssd2tb/boat/thesis/s21fe_dataset/raw/sunlit
+    target_image: /mnt/ssd2tb/boat/thesis/s21fe_dataset/sampled/raw/sunlit2024
     # target_images: /mnt/ssd2tb/boat/thesis/s21fe_dataset/raw/low-light
     # target_images: /mnt/ssd2tb/boat/thesis/superpoint_dataset/HPatches_s21fe_welllitOnly
     # target_images: /home/boat/proxyISP/data/s21fe_rainbow_chart_replica
@@ -119,25 +120,27 @@ proxyopt:
         enable: false # must be false for actual training
         external_image_path: /mnt/ssd2tb/boat/thesis/s21fe_dataset/processed/well-lit
     pooled_size: [240, 320]
-    learning_rate: 0.0005
-    save_image_iter: 100
+    # learning_rate: 0.0005
+    learning_rate: 0.0005 # 0.0005 x gradac=8
+    save_image_iter: 1000
     log_param_iter: 1
     save_hype_iter: 100
-    lr_scheduler_iter: 99999999999
-    scheduler: "exponential"
+    lr_scheduler_iter: 1
+    scheduler: None
     scheduler_param:
         final_lr: 0.00005
-        total_steps: 10000
-    grad_ac_step: 1
+        total_steps: 5000
+    grad_ac_step: 8
     loss:
         desc_loss: true
-        det_loss: true
-        det_warp_loss: true
+        det_loss: false
+        det_warp_loss: false
         entropy_loss: false # experiment loss for proxyopt
         entropy_loss_beta: 1.0
+        # desc_loss_lambda: 1.0
         desc_loss_lambda: 1.0
 
-retrain: True # set true for new model
+retrain: False # set true for new model
 reset_iter: True # set true to set the iteration number to 0
 train_iter: 200000 # 170000
 
@@ -147,7 +150,6 @@ tensorboard_interval: 200000 # 200
 save_interval: 200000 # 2000
 validation_size: 5
 
-pretrained:
-
+pretrained: 'logs/superpoint_coco_heat2_0/checkpoints/superPointNet_170000_checkpoint.pth.tar'
 
 

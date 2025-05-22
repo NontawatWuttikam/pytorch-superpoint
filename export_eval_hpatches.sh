@@ -4,12 +4,13 @@
 proxyoptConfig="../ProxyOpt/train_configs/v16.1.yaml"
 
 # optimized hype path, specify "original" if wanted original hype rather than optimized hype according to proxyopt config file.
-stage2Checkpoint="/home/boat/proxyISP/pytorch-superpoint/logs/train_v16.1_lowlight_lr0.0005/proxyopt_checkpoints/checkpoint_5000.pkl"
-extraSuffix="_eval3"
+stage2Checkpoint="/home/boat/proxyISP/pytorch-superpoint/logs/PRETRAINED_train_v16.1_welllit_lr0.0005_descLossOnly_gradac8/proxyopt_checkpoints/checkpoint_133000.pkl"
+extraSuffix="cross"
+gpu_devices="1"
 # stage2Checkpoint="original"
 
 # hpatches sequence prefix
-hpatchesSeqPrefix="ll" # ll, wl, sl
+hpatchesSeqPrefix="sl" # ll, wl, sl
 
 # Determine dataName based on stage2Checkpoint
 if [ "$stage2Checkpoint" == "original" ]; then
@@ -35,5 +36,5 @@ conda deactivate
 
 # Run export and evaluation
 conda activate py36-sp
-python export.py export_descriptor configs/magicpoint_repeatability_heatmap_proxyopt.yaml "$dataName"
-python evaluation.py "logs/$dataName/predictions" --repeatibility --outputImg --homography --plotMatching
+CUDA_VISIBLE_DEVICES=$gpu_devices python export.py export_descriptor configs/magicpoint_repeatability_heatmap_proxyopt.yaml "$dataName"
+CUDA_VISIBLE_DEVICES=$gpu_devices python evaluation.py "logs/$dataName/predictions" --repeatibility --outputImg --homography --plotMatching
