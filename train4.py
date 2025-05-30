@@ -194,7 +194,8 @@ def load_proxy_model_and_dataset(proxyopt_config, args):
     if "target_images" in proxyopt_config:
         raw_images = [str(p) for p in Path(proxyopt_config["target_images"]).rglob("*.dng")]
         additional_conf["target_image"] = raw_images
-        print(additional_conf["target_image"])
+        # print(additional_conf["target_image"])
+        print("target images found", len(additional_conf["target_image"]))
 
     dataset = ProxyISPDataset(config, openisp_config, hyp_setting, additional_conf)
 

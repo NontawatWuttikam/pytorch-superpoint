@@ -1,9 +1,10 @@
 #!/bin/bash
-EXPER=PRETRAINED_train_v16.1_sunlit2024_lr0.0005_descLossOnly_gradac8
-# EXPER=test1
+# EXPER=PRETRAINED_train_v16.1_RawEdgeContrastIndexTop100_lr0.0005_descLossOnly_gradac8
+EXPER=PRETRAINED_train_v16.1_RawEdgeContrastIndexTop100_lr0.0005_descLossOnly_gradac8
+# EXPER=stress_test3
 CONFIG=configs/superpoint_coco_train_heatmap_proxyopt.yaml
 
-GPU_DEVICE="1"
+GPU_DEVICE="0"
 
 # mkdir logs/$EXPER
 # cp $CONFIG logs/$EXPER

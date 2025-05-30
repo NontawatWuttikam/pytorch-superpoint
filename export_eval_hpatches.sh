@@ -4,13 +4,16 @@
 proxyoptConfig="../ProxyOpt/train_configs/v16.1.yaml"
 
 # optimized hype path, specify "original" if wanted original hype rather than optimized hype according to proxyopt config file.
-stage2Checkpoint="/home/boat/proxyISP/pytorch-superpoint/logs/PRETRAINED_train_v16.1_welllit_lr0.0005_descLossOnly_gradac8/proxyopt_checkpoints/checkpoint_133000.pkl"
-extraSuffix="cross"
-gpu_devices="1"
-# stage2Checkpoint="original"
+# stage2Checkpoint="/home/boat/proxyISP/pytorch-superpoint/logs/PRETRAINED_train_v16.1_RawEdgeContrastIndexTop100_lr0.0005_descLossOnly_gradac8/proxyopt_checkpoints/checkpoint_264000.pkl"
+extraSuffix=""
+gpu_devices="0"
+stage2Checkpoint="original"
 
 # hpatches sequence prefix
 hpatchesSeqPrefix="sl" # ll, wl, sl
+if [ "$hpatchesSeqPrefix" == "" ]; then
+    hpatchesSeqPrefix="all"
+fi
 
 # Determine dataName based on stage2Checkpoint
 if [ "$stage2Checkpoint" == "original" ]; then

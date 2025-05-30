@@ -112,7 +112,9 @@ proxyopt:
     config_path: '/home/boat/proxyISP/ProxyOpt/train_configs/v16.1.yaml'
     # target_images: /mnt/ssd2tb/boat/thesis/s21fe_dataset/raw/well-lit
     # target_images: /mnt/ssd2tb/boat/thesis/s21fe_dataset/raw/sunlit
-    target_image: /mnt/ssd2tb/boat/thesis/s21fe_dataset/sampled/raw/sunlit2024
+    # target_images: /mnt/ssd2tb/boat/thesis/s21fe_dataset/sampled/raw/sunlit2024
+    # target_images: /mnt/ssd2tb/boat/thesis/s21fe_dataset/raw
+    target_images: /mnt/ssd2tb/boat/thesis/s21fe_dataset/raw_edgeContrastIndex_top100
     # target_images: /mnt/ssd2tb/boat/thesis/s21fe_dataset/raw/low-light
     # target_images: /mnt/ssd2tb/boat/thesis/superpoint_dataset/HPatches_s21fe_welllitOnly
     # target_images: /home/boat/proxyISP/data/s21fe_rainbow_chart_replica
@@ -142,12 +144,12 @@ proxyopt:
 
 retrain: False # set true for new model
 reset_iter: True # set true to set the iteration number to 0
-train_iter: 200000 # 170000
+train_iter: 200000000000 # 170000
 
 # turn off sp val and log - BOAT
-validation_interval: 200000 # 2000
-tensorboard_interval: 200000 # 200
-save_interval: 200000 # 2000
+validation_interval: 200000000000 # 2000
+tensorboard_interval: 2000000000000 # 200
+save_interval: 20000000000000 # 2000
 validation_size: 5
 
 pretrained: 'logs/superpoint_coco_heat2_0/checkpoints/superPointNet_170000_checkpoint.pth.tar'

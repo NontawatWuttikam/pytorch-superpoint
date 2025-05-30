@@ -1,3 +1,7 @@
 datasets/COCO*
 datasets/*
 logs/*
+*.pyc
+*tfevents*
+*-checkpoint.ipynb
+temp_log/
