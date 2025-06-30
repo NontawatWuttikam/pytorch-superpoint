@@ -63,7 +63,7 @@ def process_dataset(source_dir, target_dir, train_config_path, hpatch_prefix, hy
             shutil.copy(homography_file, target_sequence)
 
 if __name__ == "__main__":
-    source_directory = "datasets/HPatches_s21fe"
+    source_directory = "datasets/HPatches_s21fe_reordered"
     target_directory = "datasets/HPatches"
     train_config_path = sys.argv[1]
 
