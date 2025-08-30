@@ -256,6 +256,8 @@ class Coco(data.Dataset):
             input_image = input_image.mean(dim = 0)
             # open("temp_log/after_reduce_image_shape", "w").write(str(input_image.shape))
 
+            # if config["proxyopt"]:
+
             # input_image = input_image.astype('float32') / 255.0
             return input_image, proxy_output_image, bayer
 
@@ -373,7 +375,17 @@ class Coco(data.Dataset):
 
             # images
             # warped_img = self.inv_warp_image_batch(img_aug.squeeze().repeat(homoAdapt_iter,1,1,1), inv_homographies, mode='bilinear').unsqueeze(0)
-            homo_image_input = img_o.squeeze()
+            if self.proxyopt_config["homoadapt_use_only_initial_hype"]:
+                print("Use initial hype for homoadapt!")
+                processed = self.proxy_isp_dataset.process_raw(bayer)
+                processed = (processed / 255.0).astype(np.float32)
+                processed = torch.tensor(processed, dtype=torch.float32)
+                processed = torch.permute(processed, (2, 0, 1)) # (H, W, C) -> (C, H, W)
+                processed = self.adaptivepool2d(processed)
+                processed = processed.mean(dim=0) # reduce to 1 channel
+                homo_image_input = processed.squeeze()
+            else:
+                homo_image_input = img_o.squeeze()                # exit(0)
             if self.proxyopt_config["external_homoadapt_image"]["enable"]:
                 external_image_path = Path(self.proxyopt_config["external_homoadapt_image"]["external_image_path"])
                 homo_image_input = torchvision.io.read_image(
@@ -382,7 +394,7 @@ class Coco(data.Dataset):
                 homo_image_input = homo_image_input[:, 540:2460, 1040:2960] # 1920, 1920
                 homo_image_input = torchvision.transforms.Resize((H, W))(homo_image_input)
                 homo_image_input = homo_image_input.mean(dim = 0)
-            warped_img = self.inv_warp_image_batch(img_o.squeeze().repeat(homoAdapt_iter,1,1,1), inv_homographies, mode='bilinear').unsqueeze(0)
+            warped_img = self.inv_warp_image_batch(homo_image_input.repeat(homoAdapt_iter,1,1,1), inv_homographies, mode='bilinear').unsqueeze(0)
             warped_img = warped_img.squeeze()
             # masks
             valid_mask = self.compute_valid_mask(torch.tensor([H, W]), inv_homography=inv_homographies,
@@ -391,18 +403,18 @@ class Coco(data.Dataset):
             # input.update({'image': warped_img, 'valid_mask': valid_mask, 'image_2D':img_aug})
             # input.update({'image': warped_img, 'valid_mask': valid_mask, 'image_2D':img_o})
             # input.update({'homographies': homographies, 'inv_homographies': inv_homographies})
-            input_homoadapt.update({'image': warped_img, 'valid_mask': valid_mask, 'image_2D':img_o})
+            input_homoadapt.update({'image': warped_img, 'valid_mask': valid_mask, 'image_2D':homo_image_input})
             input_homoadapt.update({'homographies': homographies, 'inv_homographies': inv_homographies})
-            open("temp_log/input_homoadapt_shapes", "w").write(f"image:{warped_img.shape}, valid_mask:{valid_mask.shape}, image_2D:{img_o.shape} homographies:{homographies.shape}, inv_homographies:{inv_homographies.shape}")
+            # open("temp_log/input_homoadapt_shapes", "w").write(f"image:{warped_img.shape}, valid_mask:{valid_mask.shape}, image_2D:{img_o.shape} homographies:{homographies.shape}, inv_homographies:{inv_homographies.shape}")
 
         # laebls
         if self.labels:
             # b - from homographic adaptation
             # pnts = np.load(sample['points'])['pts']
             # b - do online homoadapt instead
-            open("temp_log/do", "w").write("dooo")
+            # open("temp_log/do", "w").write("dooo")
             pnts = export_detector_homoAdapt_gpu_online(input_homoadapt, self.homoadapt_config, self.superpoint_homoadapt_frontend, )
-            open("temp_log/homoadapt_pnts_online", "w").write(str(pnts))
+            # open("temp_log/homoadapt_pnts_online", "w").write(str(pnts))
 
             # pnts = pnts.astype(int)
             # labels = np.zeros_like(img_o)

@@ -110,8 +110,8 @@ model:
 
 proxyopt:
     config_path: '/home/boat/proxyISP/ProxyOpt/train_configs/v16.1.yaml'
-    target_images: /mnt/ssd2tb/boat/thesis/s21fe_dataset/raw/well-lit
-    # target_images: /mnt/ssd2tb/boat/thesis/s21fe_dataset/raw/sunlit
+    # target_images: /mnt/ssd2tb/boat/thesis/s21fe_dataset/raw/well-lit
+    target_images: /mnt/ssd2tb/boat/thesis/s21fe_dataset/raw/sunlit
     # target_images: /mnt/ssd2tb/boat/thesis/s21fe_dataset/sampled/raw/sunlit2024
     # target_images: /mnt/ssd2tb/boat/thesis/s21fe_dataset/raw
     # target_images: /mnt/ssd2tb/boat/thesis/s21fe_dataset/raw_edgeContrastIndex_top100
@@ -122,6 +122,7 @@ proxyopt:
     external_homoadapt_image: # for debugging only (assume "external_image_path" contains identical image names as "target_images" with .jpeg extension )
         enable: false # must be false for actual training
         external_image_path: /mnt/ssd2tb/boat/thesis/s21fe_dataset/processed/well-lit
+    homoadapt_use_only_initial_hype: true
     pooled_size: [240, 320]
     # learning_rate: 0.0005
     learning_rate: 0.0005 # 0.0005 x gradac=8
@@ -133,11 +134,11 @@ proxyopt:
     scheduler_param:
         final_lr: 0.00005
         total_steps: 5000
-    grad_ac_step: 8
+    grad_ac_step: 1
     loss:
         desc_loss: true
-        det_loss: false
-        det_warp_loss: false
+        det_loss: true
+        det_warp_loss: true
         entropy_loss: false # experiment loss for proxyopt
         entropy_loss_beta: 1.0
         # desc_loss_lambda: 1.0

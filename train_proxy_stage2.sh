@@ -1,6 +1,6 @@
 #!/bin/bash
 # EXPER=PRETRAINED_train_v16.1_RawEdgeContrastIndexTop100_lr0.0005_descLossOnly_gradac8
-EXPER=PRETRAINED_train_v16.1_welllit_lr0.0005_descLossOnly_gradac8
+EXPER=PRETRAINED_train_v16.1_sunlit_lr0.0005_bothLoss_gradac1
 # EXPER=PRETRAINED_train_v16.1_allset_lr0.0005_descLossOnly_gradac8
 # EXPER=stress_test3
 CONFIG=configs/superpoint_coco_train_heatmap_proxyopt.yaml

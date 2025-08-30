@@ -52,4 +52,4 @@ def process_hpatches_dataset(src_root, dst_root):
             process_hpatches_sequence(seq_folder, dst_root / seq_folder.name)
 
 # Example usage:
-process_hpatches_dataset('/mnt/ssd2tb/boat/thesis/superpoint_dataset/HPatches_s21fe', '/mnt/ssd2tb/boat/thesis/superpoint_dataset/HPatches_s21fe_reordered')
+process_hpatches_dataset('/mnt/ssd2tb/boat/thesis/HPatches_s21fe_sl_coarseHomo', '/mnt/ssd2tb/boat/thesis/HPatches_s21fe_sl_coarseHomo_reordered')

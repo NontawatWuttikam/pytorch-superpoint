@@ -4,13 +4,15 @@
 proxyoptConfig="../ProxyOpt/train_configs/v16.1.yaml"
 
 # optimized hype path, specify "original" if wanted original hype rather than optimized hype according to proxyopt config file.
-stage2Checkpoint="/home/boat/proxyISP/pytorch-superpoint/logs/PRETRAINED_train_v16.1_lowlight_lr0.0005_descLossOnly_gradac8/proxyopt_checkpoints/checkpoint_158200.pkl"
-extraSuffix=""
+stage2Checkpoint="/home/boat/proxyISP/pytorch-superpoint/logs/PRETRAINED_train_v16.1_sunlit_lr0.0005_bothLoss_gradac1/proxyopt_checkpoints/checkpoint_5000.pkl"
+extraSuffix="_HPatchesV3"
 gpu_devices="0"
 # stage2Checkpoint="original"
 
+PreHPatchesPath="/mnt/ssd2tb/boat/thesis/s21fe_hpatches_v3"
+
 # hpatches sequence prefix
-hpatchesSeqPrefix="ll" # ll, wl, sl
+hpatchesSeqPrefix="sl" # ll, wl, sl
 if [ "$hpatchesSeqPrefix" == "" ]; then
     hpatchesSeqPrefix="all"
 fi
@@ -34,7 +36,7 @@ rm -rf datasets/HPatches
 # Activate environment and run hpatches generation
 source ~/miniconda3/etc/profile.d/conda.sh
 conda activate proxyopt
-python make_hpatches.py "$proxyoptConfig" "$stage2Checkpoint" "$hpatchesSeqPrefix"
+python make_hpatches.py "$proxyoptConfig" "$stage2Checkpoint" "$hpatchesSeqPrefix" "$PreHPatchesPath"
 conda deactivate
 
 # Run export and evaluation
