@@ -18,6 +18,42 @@ import rawpy
 import torchvision
 import yaml
 
+import matplotlib.pyplot as plt
+
+def save_plot_superpoint_keypoints(kp_tensor, file_path, image=None, figsize=(8, 8), alpha=0.7):
+    """
+    Visualize SuperPoint keypoints.
+
+    Args:
+        kp_tensor (torch.Tensor or np.ndarray): shape [3, NUM_KP], 
+            where each column is [x, y, confidence].
+        image (np.ndarray, optional): background image (H, W) or (H, W, 3)
+        figsize (tuple): matplotlib figure size.
+        alpha (float): transparency of keypoints.
+
+    Example:
+        plot_superpoint_keypoints(kp, image)
+    """
+    import numpy as np
+    
+    kp = kp_tensor.detach().cpu().numpy() if hasattr(kp_tensor, "detach") else kp_tensor
+    x, y, conf = kp[0], kp[1], kp[2]
+
+    plt.figure(figsize=figsize)
+    
+    if image is not None:
+        if image.ndim == 2:
+            plt.imshow(image, cmap='gray', vmin = 0, vmax = 1)
+        else:
+            plt.imshow(image, vmin = 0, vmax = 1)
+    else:
+        plt.gca().invert_yaxis()  # if no image, flip Y to match image coordinates
+    
+    plt.scatter(x, y, s=100 * conf, c='lime', edgecolors='red', alpha=alpha)
+    plt.title(f"SuperPoint Keypoints (N={len(x)})")
+    plt.axis('off')
+    plt.savefig(file_path)
+
 class Coco(data.Dataset):
     default_config = {
         'labels': None,
@@ -68,6 +104,8 @@ class Coco(data.Dataset):
             self.homoadapt_config = yaml.safe_load(f)
 
         path = self.homoadapt_config["pretrained"]
+
+        assert "superPointNet_170000_checkpoint" in path, "Forced to use same checkpoint for homoadapt as the actual SP model (self.net in Train_model_frontend)"
         nms_dist = 4
         nn_thresh = 0.7
         conf_thresh = self.homoadapt_config["model"]["detection_threshold"]
@@ -385,7 +423,15 @@ class Coco(data.Dataset):
                 processed = processed.mean(dim=0) # reduce to 1 channel
                 homo_image_input = processed.squeeze()
             else:
-                homo_image_input = img_o.squeeze()                # exit(0)
+                homo_image_input = img_o.squeeze()
+                # denormalized_hypes = self.proxy_isp_dataset.denormalize_hyp(self.proxy.return_param_value()) 
+                # processed = self.proxy_isp_dataset.process_raw(bayer, denormalized_hypes, original_hyp = False)
+                # processed = torch.tensor(processed.astype("float32") / 255.0)
+                # processed = torch.permute(processed, (2, 0, 1))
+                # processed = self.adaptivepool2d(processed)
+                # processed = processed.mean(dim=0) # reduce to 1 channel
+                # homo_image_input = processed.squeeze()
+                             # exit(0)
             if self.proxyopt_config["external_homoadapt_image"]["enable"]:
                 external_image_path = Path(self.proxyopt_config["external_homoadapt_image"]["external_image_path"])
                 homo_image_input = torchvision.io.read_image(
@@ -414,7 +460,15 @@ class Coco(data.Dataset):
             # b - do online homoadapt instead
             # open("temp_log/do", "w").write("dooo")
             pnts = export_detector_homoAdapt_gpu_online(input_homoadapt, self.homoadapt_config, self.superpoint_homoadapt_frontend, )
-            # open("temp_log/homoadapt_pnts_online", "w").write(str(pnts))
+            # print("img_o", img_o)
+            # print("img_o shape", img_o.shape)
+
+            # save_plot_superpoint_keypoints(np.swapaxes(pnts, 1,0), "temp_log/homoadapt_plot_kp.jpg", (img_o.squeeze().detach().numpy()))
+            # cv2.imwrite("temp_log/images.png", (img_o.squeeze().detach().numpy() * 255).astype(np.uint8))
+            # open("temp_log/homoadapt_pnts_online.npy", "w").write(str(pnts))
+            # np.save("temp_log/homoadapt_pnts_online.npy", pnts)
+            # print("len homoadapt kp pnts", pnts.shape)
+            # exit(0)
 
             # pnts = pnts.astype(int)
             # labels = np.zeros_like(img_o)

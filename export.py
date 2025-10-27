@@ -10,6 +10,7 @@ import argparse
 import time
 import csv
 import yaml
+import cv2
 import os
 import logging
 from pathlib import Path
@@ -221,7 +222,7 @@ def export_detector_homoAdapt_gpu_online(input_dict, config, superpoint_frontend
     # b - nms, top_k from magicpoint_coco_export.yaml
     # nms_dist = config["model"]["nms"]  # 4
     # top_k = config["model"]["top_k"]
-    top_k = 600
+    top_k = 1000
     homoAdapt_iter = config["data"]["homography_adaptation"]["num"]
     outputMatches = True
     count = 0
@@ -319,9 +320,17 @@ def export_detector_homoAdapt_gpu_online(input_dict, config, superpoint_frontend
     #         continue
 
     # pass through network
-    open("temp_log/img_to_homadapt_shape", "w").write(str(f"img:{img.shape} mask_2D:{mask_2D.shape}"))
+    # open("temp_log/img_to_homadapt_shape", "w").write(str(f"img:{img.shape} mask_2D:{mask_2D.shape}"))
     with torch.no_grad():
         torch.cuda.empty_cache()
+        # count = 0
+        # for i in range(img.shape[0]):
+        #     # save image for debug
+        #     im_array = (img[i].detach().cpu().numpy().transpose(1,2,0)*255).squeeze().astype(np.uint8)
+        #     out_dir = "./temp_log/homadapt_input/"
+        #     os.makedirs(out_dir, exist_ok=True)
+        #     cv2.imwrite(os.path.join(out_dir, f"{count}_input.png"), im_array)
+        #     count += 1
         heatmap = fe.run(img, onlyHeatmap=True, train=False)
         torch.cuda.empty_cache()
     outputs = combine_heatmap(heatmap, inv_homographies, mask_2D, device=device)
