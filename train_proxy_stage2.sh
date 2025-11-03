@@ -1,8 +1,8 @@
 #!/bin/bash
 # EXPER=PRETRAINED_train_v16.1_RawEdgeContrastIndexTop100_lr0.0005_descLossOnly_gradac8
-EXPER=PRETRAINED_train_v16.1_sunlit_lr0.0005_bothLoss_gradac1
+EXPER=PRETRAINED_SAMEMODELHOMOADAPT_AGGRESSIVEHOMOADAPT_CFANORMALIZE_XHOMOWARP_train_v16.2-chroma-HumanTunedInitialHype_hpatchesv4_lr0.0005_bothLoss_initialHypeHomoAdaptOnly_gradac102
 # EXPER=PRETRAINED_train_v16.1_allset_lr0.0005_descLossOnly_gradac8
-# EXPER=stress_test3
+# EXPER=test_homo
 CONFIG=configs/superpoint_coco_train_heatmap_proxyopt.yaml
 
 GPU_DEVICE="0"

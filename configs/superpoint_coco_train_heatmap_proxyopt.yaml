@@ -36,13 +36,13 @@ data:
     warped_pair:
         enable: true
         params:
-            translation: true
-            rotation: true
-            scaling: true
+            translation: false
+            rotation: false
+            scaling: false
             perspective: true
-            scaling_amplitude: 0.3
-            perspective_amplitude_x: 0.2
-            perspective_amplitude_y: 0.2
+            scaling_amplitude: 0.00
+            perspective_amplitude_x: 0.7
+            perspective_amplitude_y: 0.0
             patch_ratio: 0.85
             max_angle: 1.57
             allow_artifacts: true # true
@@ -50,7 +50,7 @@ data:
     # b - do homoadapt online, copy from magicpoint_coco_export.yaml
     homography_adaptation:
         enable: true
-        num: 200 # 100
+        num: 100 # 100
         aggregation: 'sum'
         filter_counts: 0
         homographies:
@@ -113,8 +113,8 @@ proxyopt:
     # target_images: /mnt/ssd2tb/boat/thesis/s21fe_dataset/raw/well-lit
     # target_images: /mnt/ssd2tb/boat/thesis/s21fe_dataset/raw/sunlit
     # target_images: /mnt/ssd2tb/boat/thesis/s21fe_dataset/raw_sunlit_flattest_top100
-    # target_images: /mnt/ssd2tb/boat/thesis/s21fe_hpatches_v4
-    target_images: /mnt/ssd2tb/boat/thesis/test_singleIm
+    target_images: /mnt/ssd2tb/boat/thesis/s21fe_hpatches_v4
+    # target_images: /mnt/ssd2tb/boat/thesis/robocat_singleim
     # target_images: /mnt/ssd2tb/boat/thesis/s21fe_dataset/sampled/raw/sunlit2024
     # target_images: /mnt/ssd2tb/boat/thesis/s21fe_dataset/raw
     # target_images: /mnt/ssd2tb/boat/thesis/s21fe_dataset/raw_edgeContrastIndex_top100
@@ -125,11 +125,13 @@ proxyopt:
     external_homoadapt_image: # for debugging only (assume "external_image_path" contains identical image names as "target_images" with .jpeg extension )
         enable: false # must be false for actual training
         external_image_path: /mnt/ssd2tb/boat/thesis/s21fe_dataset/processed/well-lit
-    homoadapt_use_only_initial_hype: false
+    homoadapt_use_only_initial_hype: true
     pooled_size: [240, 320]
-    # learning_rate: 0.0005
-    learning_rate: 0.0005 # 0.0005 x gradac=8
+    learning_rate: 0.0005
+    # learning_rate: 0.0005 # 0.0005 x gradac=8
+    # learning_rate: 0.05
     save_image_iter: 300
+    save_training_image_iter: 90
     log_param_iter: 1
     save_hype_iter: 100
     lr_scheduler_iter: 1
@@ -137,7 +139,7 @@ proxyopt:
     scheduler_param:
         final_lr: 0.00005
         total_steps: 5000
-    grad_ac_step: 8
+    grad_ac_step: 102
     loss:
         desc_loss: true
         det_loss: true

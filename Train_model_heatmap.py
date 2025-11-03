@@ -444,7 +444,8 @@ class Train_model_heatmap(Train_model_frontend):
                 print("Proxy Hype After Step:", self.train_set.proxy.return_param_value())
                 # param = self.train_set.proxy.return_param_value()
                 # self.train_set.proxy.load_param_layer(torch.tensor(param))
-                self.train_set.proxy.update_param()
+                categorical_ids = self.train_set.proxy_isp_dataset.get_categorical_ids()
+                self.train_set.proxy.update_param(categorical_ids = categorical_ids)
                 print(f"DO STEP OPTIMIZER at iter {n_iter}")
                 print("Clearing cuda cache and call gc collect()")
                 torch.cuda.empty_cache()
@@ -607,17 +608,20 @@ class Train_model_heatmap(Train_model_frontend):
                     for bin in range(param["values"].__len__()):
                         bin_name = param["values"][bin]
                         self.proxy_writer.add_scalar("ISP_hyperparameters/" + param["name"]+f"|{bin_name}", denormalized_hypes[idx], n_iter)
+                        self.proxy_writer.add_scalar("ISP_hyperparameters_raw_from_proxy/" + param["name"]+f"|{bin_name}", self.train_set.proxy.return_param_value()[idx], n_iter)
                         if proxy_gradient_to_log is not None:
                             self.proxy_writer.add_scalar("grad/" + param["name"]+f"|{bin_name}", proxy_gradient_to_log[idx], n_iter)
                         idx += 1
                 else:
                     self.proxy_writer.add_scalar("ISP_hyperparameters/" + param["name"], denormalized_hypes[idx], n_iter)
+                    self.proxy_writer.add_scalar("ISP_hyperparameters_raw_from_proxy/" + param["name"], self.train_set.proxy.return_param_value()[idx], n_iter)
                     if proxy_gradient_to_log is not None:
                         self.proxy_writer.add_scalar("grad/" + param["name"], proxy_gradient_to_log[idx], n_iter)
                     idx += 1
             assert idx == len(denormalized_hypes)
             # self.proxy_writer.add_text("Proxy Hype", str(self.train_set.proxy.return_param_value()), n_iter)
         if n_iter % self.config["proxyopt"]["save_image_iter"] == 0:
+        # if True:
             current_hyp = self.train_set.proxy.return_param_value()
             current_hyp = self.train_set.proxy_isp_dataset.denormalize_hyp(current_hyp)
             current_hyp_image = self.train_set.proxy_isp_dataset.process_raw(sample["bayer"], current_hyp, original_hyp = False)
@@ -635,12 +639,21 @@ class Train_model_heatmap(Train_model_frontend):
 
             self.proxy_writer.add_image("image (initial, current)", stitched_image, n_iter)
 
+        if n_iter % self.config["proxyopt"]["save_training_image_iter"] == 0:
             train_image = sample["image"][0]
             train_image_warp = sample["warped_img"][0]
 
             stitched_train_image = torch.cat((train_image, train_image_warp), dim=2)
             stitched_train_image = self.resize_image(stitched_train_image)
             self.proxy_writer.add_image("training image", stitched_train_image, n_iter)
+
+            # # dump images to folder for debugging
+            # torchvision.utils.save_image(initial_hyp_image, os.path.join("temp_log", f"initial_hyp_image_{n_iter}.png"))
+            # torchvision.utils.save_image(current_hyp_image, os.path.join("temp_log", f"current_hyp_image_{n_iter}.png"))
+            # torchvision.utils.save_image(train_image, os.path.join("temp_log", f"training_image_{n_iter}.png"))
+            # torchvision.utils.save_image(train_image_warp, os.path.join("temp_log", f"training_image_warp_{n_iter}.png"))
+            # exit(0)
+
 
         # print("self.save_path", self.save_path)
         # saving checkpoint - BOAT
