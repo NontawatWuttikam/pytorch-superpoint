@@ -16,6 +16,7 @@ from utils.utils import filter_points
 import glob
 import rawpy
 import torchvision
+import os
 import yaml
 
 import matplotlib.pyplot as plt
@@ -122,6 +123,9 @@ class Coco(data.Dataset):
                 cuda=False,
                 device=magicpoint_device,
         )
+
+        # cache
+        self.homo_image_input_cache = {}
 
         # Update config
         self.device = "cuda"
@@ -266,7 +270,7 @@ class Coco(data.Dataset):
             # raw_image = raw_image[1680: 1680 + 640, 1180:1180 + 640] # 640, 640
             # raw_image = raw_image[0:640, 0:640]
 
-            open("temp_log/raw_image", "w").write(str(bayer.shape))
+            # open("temp_log/raw_image", "w").write(str(bayer.shape))
 
             print("process raw with proxy hype:", self.proxy.return_param_value())
             raw_image = self.proxy_isp_dataset.preprocess_raw(bayer)
@@ -274,6 +278,10 @@ class Coco(data.Dataset):
             raw_image = raw_image.to("cuda")
 
             input_image = self.proxy(raw_image[None, :, :, :])[0]
+
+            # save input image
+            # torchvision.utils.save_image(input_image, os.path.join("temp_log", f"proxy_forward_input_image_{index}.png"))
+
             print("MEMORY after proxy forward pass:",  '{:,}'.format(torch.cuda.memory_allocated()))
 
             proxy_output_image = input_image.cpu().detach()
@@ -414,14 +422,20 @@ class Coco(data.Dataset):
             # images
             # warped_img = self.inv_warp_image_batch(img_aug.squeeze().repeat(homoAdapt_iter,1,1,1), inv_homographies, mode='bilinear').unsqueeze(0)
             if self.proxyopt_config["homoadapt_use_only_initial_hype"]:
-                print("Use initial hype for homoadapt!")
-                processed = self.proxy_isp_dataset.process_raw(bayer)
-                processed = (processed / 255.0).astype(np.float32)
-                processed = torch.tensor(processed, dtype=torch.float32)
-                processed = torch.permute(processed, (2, 0, 1)) # (H, W, C) -> (C, H, W)
-                processed = self.adaptivepool2d(processed)
-                processed = processed.mean(dim=0) # reduce to 1 channel
-                homo_image_input = processed.squeeze()
+                key = f"{index}_" + sample['image']
+                if key in self.homo_image_input_cache:
+                    print("use homo image input cache", key)
+                    homo_image_input = self.homo_image_input_cache[key]
+                else:
+                    print("Use initial hype for homoadapt!")
+                    processed = self.proxy_isp_dataset.process_raw(bayer)
+                    processed = (processed / 255.0).astype(np.float32)
+                    processed = torch.tensor(processed, dtype=torch.float32)
+                    processed = torch.permute(processed, (2, 0, 1)) # (H, W, C) -> (C, H, W)
+                    processed = self.adaptivepool2d(processed)
+                    processed = processed.mean(dim=0) # reduce to 1 channel
+                    homo_image_input = processed.squeeze()
+                    self.homo_image_input_cache[key] = homo_image_input
             else:
                 homo_image_input = img_o.squeeze()
                 # denormalized_hypes = self.proxy_isp_dataset.denormalize_hyp(self.proxy.return_param_value()) 
