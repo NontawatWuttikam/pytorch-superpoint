@@ -5,7 +5,8 @@ proxyoptConfig="../ProxyOpt/train_configs/v16.2-chroma-HumanTunedInitialHype.yam
 # proxyoptConfig="../ProxyOpt/train_configs/v16.2-chroma-ISPDefaultInitialHype.yaml"
 
 # optimized hype path, specify "original" if wanted original hype rather than optimized hype according to proxyopt config file.
-stage2Checkpoint="/home/boat/proxyISP/pytorch-superpoint/logs/PRETRAINED_SAMEMODELHOMOADAPT_AGGRESSIVEHOMOADAPT_CFANORMALIZE_train_v16.2-chroma-HumanTunedInitialHype_hpatchesv4_lr0.05_bothLoss_initialHypeHomoAdaptOnly_gradac102/proxyopt_checkpoints/checkpoint_3000.pkl"
+stage2Checkpoint="/home/boat/proxyISP/pytorch-superpoint/logs/PRETRAINED_SAMEMODELHOMOADAPT_AGGRESSIVEHOMOADAPT_CFANORMALIZE_XHOMOWARP_train_v16.2-chroma-HumanTunedInitialHype_sunlit_lr0.005_bothLoss_initialHypeHomoAdaptOnly_gradac187/proxyopt_checkpoints/checkpoint_106000.pkl"
+# stage2Checkpoint="/home/boat/proxyISP/ProxyOpt/replication_output/v16.2-chroma-HumanTunedInitialHype_replicate-s21fe_sunlit_lr0.0005_schedulerPlateauTo0.00001_bs1_ga8/checkpoints/checkpoint_120000.pkl"
 extraSuffix="_HPatchesV4"
 gpu_devices="0"
 # stage2Checkpoint="original"

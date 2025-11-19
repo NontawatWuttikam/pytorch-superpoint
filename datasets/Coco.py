@@ -18,6 +18,8 @@ import rawpy
 import torchvision
 import os
 import yaml
+import builtins
+import random
 
 import matplotlib.pyplot as plt
 
@@ -126,12 +128,17 @@ class Coco(data.Dataset):
 
         # cache
         self.homo_image_input_cache = {}
+        self.homographies_cache = {}
+        self.warped_pair_homography_cache = {}
 
         # Update config
         self.device = "cuda"
         self.config = self.default_config
         self.config = dict_update(self.config, config["data"])
         self.proxyopt_config = config["proxyopt"]
+
+        # set seed
+        self.set_seeds(self.proxyopt_config.get("seed", 42))
 
         self.transforms = transform
         self.action = 'train' if task == 'train' else 'val'
@@ -246,6 +253,25 @@ class Coco(data.Dataset):
 
     def format_sample(self, sample):
         return sample
+    
+    def set_seeds(self, seed: int = 42):
+        # python
+        random.seed(seed)
+        os.environ["PYTHONHASHSEED"] = str(seed)
+
+        # numpy
+        np.random.seed(seed)
+
+        # torch
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+
+        # cuDNN deterministic behavior
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = True
+
+        print(f"🌱 Seeds set to {seed}")
 
     def __getitem__(self, index):
         '''
@@ -368,6 +394,7 @@ class Coco(data.Dataset):
 
         from numpy.linalg import inv
         sample = self.samples[index]
+        key = f"{index}_" + sample['image']
         sample = self.format_sample(sample)
         input  = {}
         input_homoadapt = {}
@@ -406,23 +433,31 @@ class Coco(data.Dataset):
         if self.config['homography_adaptation']['enable']:
             # img_aug = torch.tensor(img_aug)
             homoAdapt_iter = self.config['homography_adaptation']['num']
-            homographies = np.stack([self.sample_homography(np.array([2, 2]), shift=-1,
-                           **self.config['homography_adaptation']['homographies']['params'])
-                           for i in range(homoAdapt_iter)])
-            ##### use inverse from the sample homography
-            homographies = np.stack([inv(homography) for homography in homographies])
-            homographies[0,:,:] = np.identity(3)
-            # homographies_id = np.stack([homographies_id, homographies])[:-1,...]
 
-            ######
+            if self.proxyopt_config["homoadapt_deterministic"] and key in self.homographies_cache:
+                print("use homographies cache", key)
+                homographies = self.homographies_cache[key]
+            else:
+                homographies = np.stack([self.sample_homography(np.array([2, 2]), shift=-1,
+                            **self.config['homography_adaptation']['homographies']['params'])
+                            for i in range(homoAdapt_iter)])
+                ##### use inverse from the sample homography
+                homographies = np.stack([inv(homography) for homography in homographies])
+                homographies[0,:,:] = np.identity(3)
+                # homographies_id = np.stack([homographies_id, homographies])[:-1,...]
 
-            homographies = torch.tensor(homographies, dtype=torch.float32)
+                ######
+
+                homographies = torch.tensor(homographies, dtype=torch.float32)
+
+                if self.proxyopt_config["homoadapt_deterministic"]:
+                    self.homographies_cache[key] = homographies
+                
             inv_homographies = torch.stack([torch.inverse(homographies[i, :, :]) for i in range(homoAdapt_iter)])
 
             # images
             # warped_img = self.inv_warp_image_batch(img_aug.squeeze().repeat(homoAdapt_iter,1,1,1), inv_homographies, mode='bilinear').unsqueeze(0)
             if self.proxyopt_config["homoadapt_use_only_initial_hype"]:
-                key = f"{index}_" + sample['image']
                 if key in self.homo_image_input_cache:
                     print("use homo image input cache", key)
                     homo_image_input = self.homo_image_input_cache[key]
@@ -474,14 +509,15 @@ class Coco(data.Dataset):
             # b - do online homoadapt instead
             # open("temp_log/do", "w").write("dooo")
             pnts = export_detector_homoAdapt_gpu_online(input_homoadapt, self.homoadapt_config, self.superpoint_homoadapt_frontend, )
-            # print("img_o", img_o)
-            # print("img_o shape", img_o.shape)
+            
+            print("img_o", img_o)
+            print("img_o shape", img_o.shape)
 
             # save_plot_superpoint_keypoints(np.swapaxes(pnts, 1,0), "temp_log/homoadapt_plot_kp.jpg", (img_o.squeeze().detach().numpy()))
             # cv2.imwrite("temp_log/images.png", (img_o.squeeze().detach().numpy() * 255).astype(np.uint8))
             # open("temp_log/homoadapt_pnts_online.npy", "w").write(str(pnts))
             # np.save("temp_log/homoadapt_pnts_online.npy", pnts)
-            # print("len homoadapt kp pnts", pnts.shape)
+            print("len homoadapt kp pnts", pnts.shape)
             # exit(0)
 
             # pnts = pnts.astype(int)
@@ -530,8 +566,16 @@ class Coco(data.Dataset):
 
 
             if self.config['warped_pair']['enable']:
-                homography = self.sample_homography(np.array([2, 2]), shift=-1,
-                                           **self.config['warped_pair']['params'])
+                if key in self.warped_pair_homography_cache and self.proxyopt_config["warped_pair_homography_deterministic"]:
+                    print("use warped pair homography cache", key)
+                    homography = self.warped_pair_homography_cache[key]
+                else:
+                    homography = self.sample_homography(np.array([2, 2]), shift=-1,
+                                            **self.config['warped_pair']['params'])
+                    if self.proxyopt_config["warped_pair_homography_deterministic"]:
+                        self.warped_pair_homography_cache[key] = homography
+
+                print("warped pair homography:", homography)
 
                 ##### use inverse from the sample homography
                 homography = np.linalg.inv(homography)
