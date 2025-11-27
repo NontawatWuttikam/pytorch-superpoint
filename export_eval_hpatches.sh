@@ -1,12 +1,12 @@
 #!/bin/bash
 
 # proxyopt config path
-proxyoptConfig="../ProxyOpt/train_configs/v16.2-chroma-HumanTunedInitialHype.yaml"
-# proxyoptConfig="../ProxyOpt/train_configs/v16.2-chroma-ISPDefaultInitialHype.yaml"
+# proxyoptConfig="../ProxyOpt/train_configs/v16.2-chroma-HumanTunedInitialHype.yaml"
+proxyoptConfig="../ProxyOpt/train_configs/v16.2-chroma-ISPDefaultInitialHype.yaml"
 
 # optimized hype path, specify "original" if wanted original hype rather than optimized hype according to proxyopt config file.
-stage2Checkpoint="/home/boat/proxyISP/pytorch-superpoint/logs/PRETRAINED_SAMEMODELHOMOADAPT_AGGRESSIVEHOMOADAPT_CFANORMALIZE_XHOMOWARP_train_v16.2-chroma-HumanTunedInitialHype_sunlit_lr0.005_bothLoss_initialHypeHomoAdaptOnly_gradac187/proxyopt_checkpoints/checkpoint_106000.pkl"
-# stage2Checkpoint="/home/boat/proxyISP/ProxyOpt/replication_output/v16.2-chroma-HumanTunedInitialHype_replicate-s21fe_sunlit_lr0.0005_schedulerPlateauTo0.00001_bs1_ga8/checkpoints/checkpoint_120000.pkl"
+stage2Checkpoint="/home/boat/proxyISP/pytorch-superpoint/logs/PRETRAINED_SAMEMODELHOMOADAPT_AGGRESSIVEHOMOADAPT_CFANORMALIZE_XHOMOWARP_DETERMHOMOADAPT_train_v16.2-chroma-HumanTunedInitialHype_lowlight_lr0.005_bothLoss_initialHypeHomoAdaptOnly_gradac187/proxyopt_checkpoints/checkpoint_105000.pkl"
+# stage2Checkpoint="/home/boat/proxyISP/ProxyOpt/replication_adjusted/v16.2-chroma-HumanTunedInitialHype_replicate-s21fe_lowlight_lr0.0005_schedulerPlateauTo0.00001_bs1_ga8/original_color_hype/checkpoint_45000.pkl"
 extraSuffix="_HPatchesV4"
 gpu_devices="0"
 # stage2Checkpoint="original"
@@ -14,7 +14,8 @@ gpu_devices="0"
 PreHPatchesPath="/mnt/ssd2tb/boat/thesis/s21fe_hpatches_v4"
 
 # hpatches sequence prefix
-hpatchesSeqPrefix="sl" # ll, wl, sl
+hpatchesSeqPrefix="ll" # ll, wl, sl
+
 if [ "$hpatchesSeqPrefix" == "" ]; then
     hpatchesSeqPrefix="all"
 fi
