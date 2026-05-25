@@ -8,6 +8,8 @@ Date: 2019/12/12
 import numpy as np
 import torch
 import random
+import os
+import pickle
 import traceback
 # from torch.autograd import Variable
 # import torch.backends.cudnn as cudnn
@@ -310,19 +312,140 @@ class Train_model_frontend(object):
             dataset_indices = list(range(len(self.train_set)))
             random.shuffle(dataset_indices)
             for i in tqdm(dataset_indices):
-                try:
-                    sample_train = self.train_set.__getitem__(i)
-                except Exception:
-                    print("Exception processing dataset index", i, traceback.format_exc())
-                    continue
-                for k,v in sample_train.items():
-                    # print(k,v)
-                    if isinstance(sample_train[k], torch.Tensor):
-                        sample_train[k] = v.unsqueeze(0) # add batch dim to sample
-                # train one sample
-                loss_out = self.train_val_sample(sample_train, self.n_iter, True)
+                solutions = self.es.ask()  # get a new solution from CMA-ES
+                losses = []
+                loss_dets = []
+                loss_descs = []
+                sol_count = 0
+                while sol_count < len(solutions):
+                    sol_id = sol_count
+                    solution = solutions[sol_id]
+                    print(f"solution {sol_id}/{len(solutions)}: {solution}")
+                    solution = self.train_set.proxy_isp_dataset.denormalize_hyp(solution)  # denormalize the solution
+                    solution = np.array(solution, dtype=np.float32) # convert to numpy array
+                    self.train_set.openisp_current_hype = solution  # set the current hyperparameters for the dataset
+                    try:
+                        print("\tdenormalized solution: ", self.train_set.openisp_current_hype)
+                        sample_train = self.train_set.__getitem__(i)
+                    except Exception:
+                        print("Exception processing dataset index", i, traceback.format_exc())
+                        print("attempting to try solution", sol_id, "again")
+                        continue
+
+                    for k,v in sample_train.items():
+                        # print(k,v)
+                        if isinstance(sample_train[k], torch.Tensor):
+                            sample_train[k] = v.unsqueeze(0) # add batch dim to sample
+                    is_train = False # BOAT - warning!! set to False for cma-es.
+                    print("running train_val_sample for this solution")
+                    loss_out, loss_det, loss_desc = self.train_val_sample(sample_train, self.n_iter, is_train)
+                    print("\tloss: ", loss_out)
+                    losses.append(loss_out)
+                    loss_dets.append(loss_det)
+                    loss_descs.append(loss_desc)
+                    sol_count += 1
+                loss_mean = np.mean(losses)
+                loss_det_mean = np.mean(loss_dets)
+                loss_desc_mean = np.mean(loss_descs)
+                print(f"Mean loss for this generation: {loss_mean}")
+                print(f"Mean detection loss for this generation: {loss_det_mean}")
+                print(f"Mean description loss for this generation: {loss_desc_mean}")
+
+                self.proxy_writer.add_scalar("loss/total_loss", loss_mean, self.n_iter)
+                self.proxy_writer.add_scalar("loss/detection_loss", loss_det_mean, self.n_iter)
+                self.proxy_writer.add_scalar("loss/description_loss", loss_desc_mean, self.n_iter)
+
+                print("telling cma-es the losses for the solutions")
+                self.es.tell(solutions, losses)  # tell CMA-ES the losses for the solutions
                 self.n_iter += 1
-                running_losses.append(loss_out)
+                running_losses.append(loss_mean)
+
+                min_idx = np.argmin(losses)
+                best_solution = solutions[min_idx]
+
+                print("best solution for this generation: ", best_solution)
+                # exit(0)
+
+                n_iter = self.n_iter
+                sample = sample_train
+
+                if n_iter % self.config["proxyopt"]["log_param_iter"] == 0:
+                    idx = 0
+                    denormalized_hypes = self.train_set.proxy_isp_dataset.denormalize_hyp(best_solution)
+                    print("denormalized hyperparameters to log: ", denormalized_hypes)
+                    for param in self.train_set.proxy_isp_dataset.hyp_setting["parameters"]:
+                        if param["type"] == "categorical":
+                            for bin in range(param["values"].__len__()):
+                                bin_name = param["values"][bin]
+                                self.proxy_writer.add_scalar("ISP_hyperparameters/" + param["name"]+f"|{bin_name}", denormalized_hypes[idx], n_iter)
+                                # self.proxy_writer.add_scalar("ISP_hyperparameters_raw_from_proxy/" + param["name"]+f"|{bin_name}", self.train_set.proxy.return_param_value()[idx], n_iter)
+                                # if proxy_gradient_to_log is not None:
+                                    # self.proxy_writer.add_scalar("grad/" + param["name"]+f"|{bin_name}", proxy_gradient_to_log[idx], n_iter)
+                                idx += 1
+                        else:
+                            self.proxy_writer.add_scalar("ISP_hyperparameters/" + param["name"], denormalized_hypes[idx], n_iter)
+                            # self.proxy_writer.add_scalar("ISP_hyperparameters_raw_from_proxy/" + param["name"], self.train_set.proxy.return_param_value()[idx], n_iter)
+                            # if proxy_gradient_to_log is not None:
+                                # self.proxy_writer.add_scalar("grad/" + param["name"], proxy_gradient_to_log[idx], n_iter)
+                            idx += 1
+                    assert idx == len(denormalized_hypes)
+                    # self.proxy_writer.add_text("Proxy Hype", str(self.train_set.proxy.return_param_value()), n_iter)
+
+                if n_iter % self.config["proxyopt"]["save_image_iter"] == 0:
+                # if True:
+                    current_hyp = self.train_set.proxy_isp_dataset.denormalize_hyp(best_solution)
+                    current_hyp_image = self.train_set.proxy_isp_dataset.process_raw(sample["bayer"], current_hyp, original_hyp = False)
+                    current_hyp_image = torch.tensor(current_hyp_image.astype("float32") / 255.0)
+                    current_hyp_image = torch.permute(current_hyp_image, (2, 0, 1))
+
+                    initial_hyp_image = self.train_set.proxy_isp_dataset.process_raw(sample["bayer"], original_hyp=True)
+                    initial_hyp_image = torch.tensor(initial_hyp_image.astype("float32") / 255.0)
+                    initial_hyp_image = torch.permute(initial_hyp_image, (2, 0, 1))
+
+                    # current_hype_image = sample["proxy_output_image"][0]
+
+                    # Concatenate images horizontally (dim=2 for width)
+                    stitched_image = torch.cat((initial_hyp_image, current_hyp_image), dim=2)
+
+                    self.proxy_writer.add_image("image (initial, current)", stitched_image, n_iter)
+
+                if n_iter % self.config["proxyopt"]["save_training_image_iter"] == 0:
+                    train_image = sample["image"][0]
+                    train_image_warp = sample["warped_img"][0]
+
+                    stitched_train_image = torch.cat((train_image, train_image_warp), dim=2)
+                    stitched_train_image = self.resize_image(stitched_train_image)
+                    self.proxy_writer.add_image("training image", stitched_train_image, n_iter)
+
+                    # # dump images to folder for debugging
+                    # torchvision.utils.save_image(initial_hyp_image, os.path.join("temp_log", f"initial_hyp_image_{n_iter}.png"))
+                    # torchvision.utils.save_image(current_hyp_image, os.path.join("temp_log", f"current_hyp_image_{n_iter}.png"))
+                    # torchvision.utils.save_image(train_image, os.path.join("temp_log", f"training_image_{n_iter}.png"))
+                    # torchvision.utils.save_image(train_image_warp, os.path.join("temp_log", f"training_image_warp_{n_iter}.png"))
+                    # exit(0)
+
+                # saving checkpoint - BOAT
+                if n_iter % self.config["proxyopt"]["save_hype_iter"] == 0:
+                    cma_es_path = Path(self.save_path).parent / "cma_es_checkpoints"
+                    os.makedirs(cma_es_path, exist_ok = True)
+                    params = np.array(best_solution)
+                    lr_scheduler_state_dict = None
+                    lr_scheduler_class = None
+                    if self.lr_scheduler is not None:
+                        lr_scheduler_state_dict = self.lr_scheduler.state_dict()
+                        lr_scheduler_class = self.lr_scheduler.__class__.__name__
+                    checkpoint_path = str(cma_es_path / f"checkpoint_{n_iter}.pkl")
+                    with open(checkpoint_path, "wb") as f:
+                        obj = {
+                            "proxy_hype":params,
+                            "lr_scheduler_state_dict": lr_scheduler_state_dict,
+                            # "optimizer_state_dict": optimizer.state_dict(),
+                            "lr_scheduler_class": lr_scheduler_class,
+                            "optimizer_class": "CMAEvolutionStrategy",
+                            "train_proxy_from_it": n_iter
+                        }
+                        pickle.dump(obj, f)
+
                 # run validation
                 if self._eval and self.n_iter % self.config["validation_interval"] == 0:
                     logging.info("====== Validating...")

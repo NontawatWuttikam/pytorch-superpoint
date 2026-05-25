@@ -4,6 +4,7 @@ Author: You-Yi Jau, Rui Zhu
 Date: 2019/12/12
 """
 
+import cma
 import numpy as np
 import torch
 # from torch.autograd import Variable
@@ -251,7 +252,7 @@ class Train_model_heatmap(Train_model_frontend):
         learning_rate = self.config["proxyopt"]["learning_rate"]
         if self.lr_scheduler is not None:
             learning_rate = self.lr_scheduler.get_last_lr()[0]
-        optimizer = torch.optim.Adam([self.train_set.proxy.param_layer], learning_rate)
+        # optimizer = torch.optim.Adam([self.train_set.proxy.param_layer], learning_rate)
         # self.optimizer.zero_grad()
 
         # forward + backward + optimize
@@ -368,7 +369,7 @@ class Train_model_heatmap(Train_model_frontend):
             loss += entropy_loss
 
 
-        loss /= self.config["proxyopt"]["grad_ac_step"]
+        # loss /= self.config["proxyopt"]["grad_ac_step"]
 
         ##### try to minimize the error ######
         add_res_loss = False
@@ -462,8 +463,8 @@ class Train_model_heatmap(Train_model_frontend):
                 self.proxy_writer.add_scalar("learning_rate", learning_rate, n_iter)
                 self.accum_loss = 0
 
-        if n_iter > 0 and n_iter % self.config["proxyopt"]["lr_scheduler_iter"] == 0 and self.lr_scheduler is not None:
-            self.lr_scheduler.step()
+        # if n_iter > 0 and n_iter % self.config["proxyopt"]["lr_scheduler_iter"] == 0 and self.lr_scheduler is not None:
+        #     self.lr_scheduler.step()
 
 
         if n_iter % tb_interval == 0 or task == "val":
@@ -599,86 +600,86 @@ class Train_model_heatmap(Train_model_frontend):
 
         self.tb_scalar_dict(self.scalar_dict, task)
 
-        # logging - BOAT
-        if n_iter % self.config["proxyopt"]["log_param_iter"] == 0:
-            idx = 0
-            denormalized_hypes = self.train_set.proxy_isp_dataset.denormalize_hyp(self.train_set.proxy.return_param_value())
-            for param in self.train_set.proxy_isp_dataset.hyp_setting["parameters"]:
-                if param["type"] == "categorical":
-                    for bin in range(param["values"].__len__()):
-                        bin_name = param["values"][bin]
-                        self.proxy_writer.add_scalar("ISP_hyperparameters/" + param["name"]+f"|{bin_name}", denormalized_hypes[idx], n_iter)
-                        self.proxy_writer.add_scalar("ISP_hyperparameters_raw_from_proxy/" + param["name"]+f"|{bin_name}", self.train_set.proxy.return_param_value()[idx], n_iter)
-                        if proxy_gradient_to_log is not None:
-                            self.proxy_writer.add_scalar("grad/" + param["name"]+f"|{bin_name}", proxy_gradient_to_log[idx], n_iter)
-                        idx += 1
-                else:
-                    self.proxy_writer.add_scalar("ISP_hyperparameters/" + param["name"], denormalized_hypes[idx], n_iter)
-                    self.proxy_writer.add_scalar("ISP_hyperparameters_raw_from_proxy/" + param["name"], self.train_set.proxy.return_param_value()[idx], n_iter)
-                    if proxy_gradient_to_log is not None:
-                        self.proxy_writer.add_scalar("grad/" + param["name"], proxy_gradient_to_log[idx], n_iter)
-                    idx += 1
-            assert idx == len(denormalized_hypes)
-            # self.proxy_writer.add_text("Proxy Hype", str(self.train_set.proxy.return_param_value()), n_iter)
-        if n_iter % self.config["proxyopt"]["save_image_iter"] == 0:
-        # if True:
-            current_hyp = self.train_set.proxy.return_param_value()
-            current_hyp = self.train_set.proxy_isp_dataset.denormalize_hyp(current_hyp)
-            current_hyp_image = self.train_set.proxy_isp_dataset.process_raw(sample["bayer"], current_hyp, original_hyp = False)
-            current_hyp_image = torch.tensor(current_hyp_image.astype("float32") / 255.0)
-            current_hyp_image = torch.permute(current_hyp_image, (2, 0, 1))
+        # # logging - BOAT
+        # if n_iter % self.config["proxyopt"]["log_param_iter"] == 0:
+        #     idx = 0
+        #     denormalized_hypes = self.train_set.proxy_isp_dataset.denormalize_hyp(self.train_set.proxy.return_param_value())
+        #     for param in self.train_set.proxy_isp_dataset.hyp_setting["parameters"]:
+        #         if param["type"] == "categorical":
+        #             for bin in range(param["values"].__len__()):
+        #                 bin_name = param["values"][bin]
+        #                 self.proxy_writer.add_scalar("ISP_hyperparameters/" + param["name"]+f"|{bin_name}", denormalized_hypes[idx], n_iter)
+        #                 self.proxy_writer.add_scalar("ISP_hyperparameters_raw_from_proxy/" + param["name"]+f"|{bin_name}", self.train_set.proxy.return_param_value()[idx], n_iter)
+        #                 if proxy_gradient_to_log is not None:
+        #                     self.proxy_writer.add_scalar("grad/" + param["name"]+f"|{bin_name}", proxy_gradient_to_log[idx], n_iter)
+        #                 idx += 1
+        #         else:
+        #             self.proxy_writer.add_scalar("ISP_hyperparameters/" + param["name"], denormalized_hypes[idx], n_iter)
+        #             self.proxy_writer.add_scalar("ISP_hyperparameters_raw_from_proxy/" + param["name"], self.train_set.proxy.return_param_value()[idx], n_iter)
+        #             if proxy_gradient_to_log is not None:
+        #                 self.proxy_writer.add_scalar("grad/" + param["name"], proxy_gradient_to_log[idx], n_iter)
+        #             idx += 1
+        #     assert idx == len(denormalized_hypes)
+        #     # self.proxy_writer.add_text("Proxy Hype", str(self.train_set.proxy.return_param_value()), n_iter)
+        # if n_iter % self.config["proxyopt"]["save_image_iter"] == 0:
+        # # if True:
+        #     current_hyp = self.train_set.proxy.return_param_value()
+        #     current_hyp = self.train_set.proxy_isp_dataset.denormalize_hyp(current_hyp)
+        #     current_hyp_image = self.train_set.proxy_isp_dataset.process_raw(sample["bayer"], current_hyp, original_hyp = False)
+        #     current_hyp_image = torch.tensor(current_hyp_image.astype("float32") / 255.0)
+        #     current_hyp_image = torch.permute(current_hyp_image, (2, 0, 1))
 
-            initial_hyp_image = self.train_set.proxy_isp_dataset.process_raw(sample["bayer"], original_hyp=True)
-            initial_hyp_image = torch.tensor(initial_hyp_image.astype("float32") / 255.0)
-            initial_hyp_image = torch.permute(initial_hyp_image, (2, 0, 1))
+        #     initial_hyp_image = self.train_set.proxy_isp_dataset.process_raw(sample["bayer"], original_hyp=True)
+        #     initial_hyp_image = torch.tensor(initial_hyp_image.astype("float32") / 255.0)
+        #     initial_hyp_image = torch.permute(initial_hyp_image, (2, 0, 1))
 
-            # current_hype_image = sample["proxy_output_image"][0]
+        #     # current_hype_image = sample["proxy_output_image"][0]
 
-            # Concatenate images horizontally (dim=2 for width)
-            stitched_image = torch.cat((initial_hyp_image, current_hyp_image), dim=2)
+        #     # Concatenate images horizontally (dim=2 for width)
+        #     stitched_image = torch.cat((initial_hyp_image, current_hyp_image), dim=2)
 
-            self.proxy_writer.add_image("image (initial, current)", stitched_image, n_iter)
+        #     self.proxy_writer.add_image("image (initial, current)", stitched_image, n_iter)
 
-        if n_iter % self.config["proxyopt"]["save_training_image_iter"] == 0:
-            train_image = sample["image"][0]
-            train_image_warp = sample["warped_img"][0]
+        # if n_iter % self.config["proxyopt"]["save_training_image_iter"] == 0:
+        #     train_image = sample["image"][0]
+        #     train_image_warp = sample["warped_img"][0]
 
-            stitched_train_image = torch.cat((train_image, train_image_warp), dim=2)
-            stitched_train_image = self.resize_image(stitched_train_image)
-            self.proxy_writer.add_image("training image", stitched_train_image, n_iter)
+        #     stitched_train_image = torch.cat((train_image, train_image_warp), dim=2)
+        #     stitched_train_image = self.resize_image(stitched_train_image)
+        #     self.proxy_writer.add_image("training image", stitched_train_image, n_iter)
 
-            # # dump images to folder for debugging
-            # torchvision.utils.save_image(initial_hyp_image, os.path.join("temp_log", f"initial_hyp_image_{n_iter}.png"))
-            # torchvision.utils.save_image(current_hyp_image, os.path.join("temp_log", f"current_hyp_image_{n_iter}.png"))
-            # torchvision.utils.save_image(train_image, os.path.join("temp_log", f"training_image_{n_iter}.png"))
-            # torchvision.utils.save_image(train_image_warp, os.path.join("temp_log", f"training_image_warp_{n_iter}.png"))
-            # exit(0)
+        #     # # dump images to folder for debugging
+        #     # torchvision.utils.save_image(initial_hyp_image, os.path.join("temp_log", f"initial_hyp_image_{n_iter}.png"))
+        #     # torchvision.utils.save_image(current_hyp_image, os.path.join("temp_log", f"current_hyp_image_{n_iter}.png"))
+        #     # torchvision.utils.save_image(train_image, os.path.join("temp_log", f"training_image_{n_iter}.png"))
+        #     # torchvision.utils.save_image(train_image_warp, os.path.join("temp_log", f"training_image_warp_{n_iter}.png"))
+        #     # exit(0)
 
 
         # print("self.save_path", self.save_path)
         # saving checkpoint - BOAT
-        if n_iter % self.config["proxyopt"]["save_hype_iter"] == 0:
-            proxyopt_checkpoint_path = Path(self.save_path).parent / "proxyopt_checkpoints"
-            os.makedirs(proxyopt_checkpoint_path, exist_ok = True)
-            params = self.train_set.proxy.return_param_value()
-            lr_scheduler_state_dict = None
-            lr_scheduler_class = None
-            if self.lr_scheduler is not None:
-                lr_scheduler_state_dict = self.lr_scheduler.state_dict()
-                lr_scheduler_class = self.lr_scheduler.__class__.__name__
-            checkpoint_path = str(proxyopt_checkpoint_path / f"checkpoint_{n_iter}.pkl")
-            with open(checkpoint_path, "wb") as f:
-                obj = {
-                    "proxy_hype":params,
-                    "lr_scheduler_state_dict": lr_scheduler_state_dict,
-                    "optimizer_state_dict": optimizer.state_dict(),
-                    "lr_scheduler_class": lr_scheduler_class,
-                    "optimizer_class": optimizer.state_dict(),
-                    "train_proxy_from_it": n_iter
-                }
-                pickle.dump(obj, f)
+        # if n_iter % self.config["proxyopt"]["save_hype_iter"] == 0:
+        #     proxyopt_checkpoint_path = Path(self.save_path).parent / "proxyopt_checkpoints"
+        #     os.makedirs(proxyopt_checkpoint_path, exist_ok = True)
+        #     params = self.train_set.proxy.return_param_value()
+        #     lr_scheduler_state_dict = None
+        #     lr_scheduler_class = None
+        #     if self.lr_scheduler is not None:
+        #         lr_scheduler_state_dict = self.lr_scheduler.state_dict()
+        #         lr_scheduler_class = self.lr_scheduler.__class__.__name__
+        #     checkpoint_path = str(proxyopt_checkpoint_path / f"checkpoint_{n_iter}.pkl")
+        #     with open(checkpoint_path, "wb") as f:
+        #         obj = {
+        #             "proxy_hype":params,
+        #             "lr_scheduler_state_dict": lr_scheduler_state_dict,
+        #             "optimizer_state_dict": optimizer.state_dict(),
+        #             "lr_scheduler_class": lr_scheduler_class,
+        #             "optimizer_class": optimizer.state_dict(),
+        #             "train_proxy_from_it": n_iter
+        #         }
+        #         pickle.dump(obj, f)
 
-        return loss.item()
+        return loss.item(), loss_det.item(), loss_desc.item()
 
     def heatmap_to_nms(self, images_dict, heatmap, name):
         """

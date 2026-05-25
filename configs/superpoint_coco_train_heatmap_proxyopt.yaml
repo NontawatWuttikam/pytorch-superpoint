@@ -133,16 +133,16 @@ proxyopt:
     # learning_rate: 0.0005
     # learning_rate: 0.0005 # 0.0005 x gradac=8
     learning_rate: 0.005
-    save_image_iter: 1000
-    save_training_image_iter: 1000
+    save_image_iter: 1
+    save_training_image_iter: 1
     log_param_iter: 1
-    save_hype_iter: 10
+    save_hype_iter: 1
     lr_scheduler_iter: 1
     scheduler: None
     scheduler_param:
         final_lr: 0.00005
         total_steps: 5000
-    grad_ac_step: 187
+    # grad_ac_step: 187 # unused for cma-es
     loss:
         desc_loss: true
         det_loss: true

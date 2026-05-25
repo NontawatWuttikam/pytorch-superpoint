@@ -20,7 +20,7 @@ import argparse
 import yaml
 import os
 import logging
-
+import cma
 import torch
 import torch.optim
 import torch.utils.data
@@ -109,6 +109,13 @@ def train_joint(config, output_dir, args):
     # train_agent.val_loader = val_loader
     train_agent.train_set = train_set
     train_agent.val_set = val_set
+
+    # setup cma-es
+    initail_solution = train_set.proxy_isp_dataset.get_original_hyp(True, False, add_eps = False)
+    print("cma-es initial solution", initail_solution)
+    print("initializng cma-es")
+    opts = {"CSA_dampfac": 5.0, 'maxstd': 3e-2}
+    train_agent.es = cma.CMAEvolutionStrategy(initail_solution, 0.5, opts)
 
     # load model initiates the model and load the pretrained model (if any)
     train_agent.loadModel()

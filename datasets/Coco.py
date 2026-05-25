@@ -98,6 +98,7 @@ class Coco(data.Dataset):
         # self.adaptivepool2d = torch.nn.AdaptiveAvgPool2d((480, 640))
         # self.adaptivepool2d = torch.nn.AdaptiveAvgPool2d((240, 320))
         self.proxy_isp_dataset = proxy_isp_dataset
+        self.openisp_current_hype = self.proxy_isp_dataset.get_original_hyp(normalize = False, tensor = False)
 
         # b - online homoadapt area
         # TODO: make configurable
@@ -280,58 +281,74 @@ class Coco(data.Dataset):
         :return:
             image: tensor (H, W, channel=1)
         '''
+
+        assert isinstance(self.openisp_current_hype, np.ndarray), "openisp_current_hype should be numpy array"
+        
+        # def _read_image(path):
+        #     cell = 8
+        #     print("path", path)
+        #     # input_image = cv2.imread(path)
+        #     # print(f"path: {path}, image: {image}")
+        #     # print(f"path: {path}, image: {input_image.shape}")
+        #     # input_image = cv2.resize(input_image, (self.sizer[1], self.sizer[0]),
+        #     #                          interpolation=cv2.INTER_AREA)
+
+        #     bayer = rawpy.imread(path).raw_image
+
+        #     #TODO make configurable
+        #     bayer = bayer[540:2460, 1040:2960] # 1920, 1920
+        #     # raw_image = raw_image[1680: 1680 + 640, 1180:1180 + 640] # 640, 640
+        #     # raw_image = raw_image[0:640, 0:640]
+
+        #     # open("temp_log/raw_image", "w").write(str(bayer.shape))
+
+        #     print("process raw with proxy hype:", self.proxy.return_param_value())
+        #     raw_image = self.proxy_isp_dataset.preprocess_raw(bayer)
+
+        #     raw_image = raw_image.to("cuda")
+
+        #     input_image = self.proxy(raw_image[None, :, :, :])[0]
+
+        #     # save input image
+        #     # torchvision.utils.save_image(input_image, os.path.join("temp_log", f"proxy_forward_input_image_{index}.png"))
+
+        #     print("MEMORY after proxy forward pass:",  '{:,}'.format(torch.cuda.memory_allocated()))
+
+        #     proxy_output_image = input_image.cpu().detach()
+
+        #     input_image = self.adaptivepool2d(input_image)
+        #     # print("input_image", input_image)
+
+        #     # open("temp_log/pooled_input_image", "w").write(str(input_image.shape))
+
+        #     input_image = input_image.clamp(0, 1)
+
+        #     # H, W = input_image.shape[0], input_image.shape[1]
+        #     # H = H//cell*cell
+        #     # W = W//cell*cell
+        #     # input_image = input_image[:H,:W,:]
+        #     # input_image = cv2.cvtColor(input_image, cv2.COLOR_RGB2GRAY)
+
+        #     input_image = input_image.mean(dim = 0)
+        #     # open("temp_log/after_reduce_image_shape", "w").write(str(input_image.shape))
+
+        #     # if config["proxyopt"]:
+
+        #     # input_image = input_image.astype('float32') / 255.0
+        #     return input_image, proxy_output_image, bayer
+
         def _read_image(path):
-            cell = 8
-            print("path", path)
-            # input_image = cv2.imread(path)
-            # print(f"path: {path}, image: {image}")
-            # print(f"path: {path}, image: {input_image.shape}")
-            # input_image = cv2.resize(input_image, (self.sizer[1], self.sizer[0]),
-            #                          interpolation=cv2.INTER_AREA)
-
             bayer = rawpy.imread(path).raw_image
-
-            #TODO make configurable
             bayer = bayer[540:2460, 1040:2960] # 1920, 1920
-            # raw_image = raw_image[1680: 1680 + 640, 1180:1180 + 640] # 640, 640
-            # raw_image = raw_image[0:640, 0:640]
-
-            # open("temp_log/raw_image", "w").write(str(bayer.shape))
-
-            print("process raw with proxy hype:", self.proxy.return_param_value())
-            raw_image = self.proxy_isp_dataset.preprocess_raw(bayer)
-
-            raw_image = raw_image.to("cuda")
-
-            input_image = self.proxy(raw_image[None, :, :, :])[0]
-
-            # save input image
-            # torchvision.utils.save_image(input_image, os.path.join("temp_log", f"proxy_forward_input_image_{index}.png"))
-
-            print("MEMORY after proxy forward pass:",  '{:,}'.format(torch.cuda.memory_allocated()))
-
-            proxy_output_image = input_image.cpu().detach()
-
-            input_image = self.adaptivepool2d(input_image)
-            # print("input_image", input_image)
-
-            # open("temp_log/pooled_input_image", "w").write(str(input_image.shape))
-
-            input_image = input_image.clamp(0, 1)
-
-            # H, W = input_image.shape[0], input_image.shape[1]
-            # H = H//cell*cell
-            # W = W//cell*cell
-            # input_image = input_image[:H,:W,:]
-            # input_image = cv2.cvtColor(input_image, cv2.COLOR_RGB2GRAY)
-
-            input_image = input_image.mean(dim = 0)
-            # open("temp_log/after_reduce_image_shape", "w").write(str(input_image.shape))
-
-            # if config["proxyopt"]:
-
-            # input_image = input_image.astype('float32') / 255.0
-            return input_image, proxy_output_image, bayer
+            # assert self.openisp_current_hype.max() > 1.0, "openisp_current_hype should be in original scale before process_raw"
+            processed = self.proxy_isp_dataset.process_raw(bayer, self.openisp_current_hype, original_hyp = False)
+            # assert np.max(processed) > 1.0, "processed image should be in 0-255 range before normalization"
+            processed = (processed / 255.0).astype(np.float32)
+            processed = torch.tensor(processed, dtype=torch.float32)
+            processed = torch.permute(processed, (2, 0, 1))
+            processed = self.adaptivepool2d(processed)
+            processed = processed.mean(dim=0)
+            return processed, bayer
 
         def _preprocess(image):
             if self.transforms is not None:
@@ -402,8 +419,9 @@ class Coco(data.Dataset):
         input_homoadapt.update(sample)
         # image
         # img_o = _read_image(self.get_img_from_sample(sample))
-        img_o, proxy_output_image, bayer = _read_image(sample['image'])
-        input.update({'proxy_output_image': proxy_output_image})
+        # img_o, proxy_output_image, bayer = _read_image(sample['image'])
+        img_o, bayer = _read_image(sample['image'])
+        # input.update({'proxy_output_image': proxy_output_image})
         input.update({'bayer': bayer})
 
         img_o = img_o.cpu()
