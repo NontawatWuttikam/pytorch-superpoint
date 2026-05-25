@@ -312,17 +312,29 @@ def evaluate(args, **options):
                 img1 = np.concatenate([img1, img1, img1], axis=2)
                 warped_img1 = np.stack([warped_img1, warped_img1, warped_img1], axis=2)
                 img2 = np.concatenate([img2, img2, img2], axis=2)
-                plot_imgs([img1, img2, warped_img1], titles=['img1', 'img2', 'warped_img1'], dpi=200)
+
+                # create alpha blending images from img2 and warped_img1 (red is img2 and blue is warped_img1)
+                alpha = 0.5
+                red = np.zeros_like(img2)
+                red[..., 2] = img2[..., 2]     # red channel
+
+                blue = np.zeros_like(warped_img1)
+                blue[..., 0] = warped_img1[..., 0]  # blue channel
+
+                blend = (1 - alpha) * red + alpha * blue
+
+                plot_imgs([img1, img2, warped_img1, blend], titles=['img1', 'img2', 'warped_img1', 'overlay'], dpi=200)
+                
                 plt.tight_layout()
                 plt.savefig(path_warp + '/' + f_num + '.png')
 
                 ## plot filtered image
-                img1, img2 = data['image'], data['warped_image']
-                warped_img1 = cv2.warpPerspective(img1, H, (img2.shape[1], img2.shape[0]))
-                plot_imgs([img1, img2, warped_img1], titles=['img1', 'img2', 'warped_img1'], dpi=200)
-                plt.tight_layout()
-                # plt.savefig(path_warp + '/' + f_num + '_fil.png')
-                plt.savefig(path_warp + '/' + f_num + '.png')
+                # img1, img2 = data['image'], data['warped_image']
+                # warped_img1 = cv2.warpPerspective(img1, H, (img2.shape[1], img2.shape[0]))
+                # plot_imgs([img1, img2, warped_img1], titles=['img1', 'img2', 'warped_img1'], dpi=200)
+                # plt.tight_layout()
+                # # plt.savefig(path_warp + '/' + f_num + '_fil.png')
+                # plt.savefig(path_warp + '/' + f_num + '.png')
 
                 # plt.show()
 
