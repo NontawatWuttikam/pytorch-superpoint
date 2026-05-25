@@ -6,3 +6,5 @@ logs/*
 *-checkpoint.ipynb
 temp_log/
 proxyopt_notebook/*/
+visualize_output/
+hpatches_grids/
