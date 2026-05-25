@@ -5,3 +5,4 @@ logs/*
 *tfevents*
 *-checkpoint.ipynb
 temp_log/
+proxyopt_notebook/*/

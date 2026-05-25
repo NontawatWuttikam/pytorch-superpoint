@@ -3,21 +3,21 @@
 # Usage Example:
 # ./sweep_eval.sh 80000 200000 20000
 
-start=30000      # e.g. 80000
-end=60000        # e.g. 200000
+start=75000      # e.g. 80000
+end=90000        # e.g. 200000
 step=200
 
 # proxyopt config path
-proxyoptConfig="../ProxyOpt/train_configs/v16.2-chroma-HumanTunedInitialHype.yaml"
+proxyoptConfig="../ProxyOpt/train_configs/v16.2-chroma-ISPDefaultInitialHype.yaml"
 
 # common settings
-extraSuffix="_HPatchesV4"
+extraSuffix="_HPatchesV4.1"
 gpu_devices="0"
-PreHPatchesPath="/mnt/ssd2tb/boat/thesis/s21fe_hpatches_v4"
-hpatchesSeqPrefix="ll"  # ll, wl, sl
+PreHPatchesPath="/mnt/ssd2tb/boat/thesis/s21fe_hpatches_v4.1"
+hpatchesSeqPrefix="sl"  # ll, wl, sl
 
 # base directory where checkpoints are located
-checkpoint_base="/home/boat/proxyISP/pytorch-superpoint/logs/PRETRAINED_SAMEMODELHOMOADAPT_AGGRESSIVEHOMOADAPT_CFANORMALIZE_XHOMOWARP_NONDETERMHOMOADAPT_train_v16.2-chroma-HumanTunedInitialHype_sunlit_lr0.0005_bothLoss_latestHypeHomoAdapt_gradac187/proxyopt_checkpoints"
+checkpoint_base="/home/boat/proxyISP/pytorch-superpoint/logs/PRETRAINED_SAMEMODELHOMOADAPT_AGGRESSIVEHOMOADAPT_CFANORMALIZE_XHOMOWARP_DETERMHOMOADAPT_train_v16.2-chroma-HumanTunedInitialHype_sunlit_lr0.005_bothLoss_initialHypeHomoAdaptOnly_gradac187/proxyopt_checkpoints"
 
 # Conda environments
 env_gen="proxyopt"
