@@ -125,6 +125,9 @@ proxyopt:
     external_homoadapt_image: # for debugging only (assume "external_image_path" contains identical image names as "target_images" with .jpeg extension )
         enable: false # must be false for actual training
         external_image_path: /mnt/ssd2tb/boat/thesis/s21fe_dataset/processed/well-lit
+    cmaes:
+        maxstd: 0.02
+        CSA_dampfac: 10.0
     homoadapt_use_only_initial_hype: false
     homoadapt_deterministic: false
     warped_pair_homography_deterministic: false

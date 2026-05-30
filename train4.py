@@ -111,11 +111,20 @@ def train_joint(config, output_dir, args):
     train_agent.val_set = val_set
 
     # setup cma-es
-    initail_solution = train_set.proxy_isp_dataset.get_original_hyp(True, False, add_eps = False)
-    print("cma-es initial solution", initail_solution)
+    initial_solution = None
+    if proxyopt_checkpoint_object is not None:
+        print("loading cma-es state from checkpoint")
+        initial_solution = proxyopt_checkpoint_object["proxy_hype"]
+    else:
+        print("no checkpoint found, initializing cma-es with original hyperparameters")
+        initial_solution = train_set.proxy_isp_dataset.get_original_hyp(True, False, add_eps = False)
+    print("cma-es initial solution", initial_solution)
     print("initializng cma-es")
-    opts = {"CSA_dampfac": 5.0, 'maxstd': 3e-2}
-    train_agent.es = cma.CMAEvolutionStrategy(initail_solution, 0.5, opts)
+    maxstd = proxyopt_config["cmaes"]["maxstd"]
+    CSA_dampfac = proxyopt_config["cmaes"]["CSA_dampfac"]
+
+    opts = {"CSA_dampfac": CSA_dampfac, 'maxstd': maxstd}
+    train_agent.es = cma.CMAEvolutionStrategy(initial_solution, 0.5, opts)
 
     # load model initiates the model and load the pretrained model (if any)
     train_agent.loadModel()
@@ -145,12 +154,15 @@ def load_proxy_model_and_dataset(proxyopt_config, args):
     hyp_setting = yaml_dict["hyp_setting"]
 
     stage2_output_dir = Path("logs") / args.exper_name
+    print("stage2_output_dir", stage2_output_dir)
 
     loaded_param_layer = None
     proxyopt_checkpoint_object = None
 
-    checkpoint_dir = stage2_output_dir / "proxyopt_checkpoints"
+    checkpoint_dir = stage2_output_dir / "cma_es_checkpoints"
+    print("checkpoint_dir", checkpoint_dir)
     if os.path.exists(checkpoint_dir):
+        print("checkpoint dir exists, loading checkpoint")
         checkpoints = list(os.scandir(checkpoint_dir))
         checkpoints = sorted(checkpoints, key = lambda x: int(x.name.split("_")[-1].split(".")[0]))
         checkpoints = checkpoints[::-1]

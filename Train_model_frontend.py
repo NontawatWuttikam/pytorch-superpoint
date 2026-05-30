@@ -406,6 +406,8 @@ class Train_model_frontend(object):
 
                     # Concatenate images horizontally (dim=2 for width)
                     stitched_image = torch.cat((initial_hyp_image, current_hyp_image), dim=2)
+                    # downsampled for better visualization in tensorboard
+                    stitched_image = self.resize_image(stitched_image)
 
                     self.proxy_writer.add_image("image (initial, current)", stitched_image, n_iter)
 
