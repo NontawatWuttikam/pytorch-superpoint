@@ -1,8 +1,12 @@
 #!/bin/bash
 
+# -----------------------------------------------------------------------------
+# Default values
+# -----------------------------------------------------------------------------
+
 # proxyopt config path
-# proxyoptConfig="../ProxyOpt/train_configs/v16.2-chroma-HumanTunedInitialHype.yaml"
-proxyoptConfig="../ProxyOpt/train_configs/v16.2-chroma-ISPDefaultInitialHype.yaml"
+proxyoptConfig="${1:-../ProxyOpt/train_configs/v16.2-chroma-HumanTunedInitialHype.yaml}"
+# proxyoptConfig="../ProxyOpt/train_configs/v16.2-chroma-ISPDefaultInitialHype.yaml"
 
 # optimized hype path, specify "original" if wanted original hype rather than optimized hype according to proxyopt config file.
 # stage2Checkpoint="/home/boat/proxyISP/pytorch-superpoint/logs/PRETRAINED_SAMEMODELHOMOADAPT_AGGRESSIVEHOMOADAPT_CFANORMALIZE_XHOMOWARP_DETERMHOMOADAPT_train_v16.2-chroma-HumanTunedInitialHype_lowlight_lr0.005_bothLoss_initialHypeHomoAdaptOnly_gradac187/proxyopt_checkpoints/checkpoint_90200.pkl"
@@ -14,14 +18,20 @@ proxyoptConfig="../ProxyOpt/train_configs/v16.2-chroma-ISPDefaultInitialHype.yam
 
 # stage2Checkpoint="/home/boat/proxyISP/ProxyOpt/v16.2-chroma-HumanTunedInitialHype_replicate-s21fe_sunlit_lr0.0005_schedulerPlateauTo0.00001_bs1_ga8_adjust_defaultcolorhuesat/checkpoints/checkpoint_120000.pkl"
 # stage2Checkpoint="/home/boat/proxyISP/ProxyOpt/v16.2-chroma-HumanTunedInitialHype_replicate-s21fe_lowlight_lr0.0005_schedulerPlateauTo0.00001_bs1_ga8_adjust_defaultcolorhuesat_denoise/checkpoints/checkpoint_45000.pkl"
-extraSuffix="_HPatchesV4.1"
-gpu_devices="0"
-stage2Checkpoint="original"
 
-PreHPatchesPath="/mnt/ssd2tb/boat/thesis/s21fe_hpatches_v4.1"
+stage2Checkpoint="${2:-/home/boat/proxyISP/pytorch-superpoint/logs/CMAES_train_maxstd0.01_csadampfac10.0/cma_es_checkpoints/checkpoint_2800.pkl}"
+
+extraSuffix="${3:-_HPatchesV4.1}"
+gpu_devices="0"
+
+# stage2Checkpoint="original"
+
+PreHPatchesPath="${4:-/mnt/ssd2tb/boat/thesis/s21fe_hpatches_v4.1}"
 
 # hpatches sequence prefix
-hpatchesSeqPrefix="ll" # ll, wl, sl
+hpatchesSeqPrefix="${5:-sl}" # ll, wl, sl
+
+# -----------------------------------------------------------------------------
 
 if [ "$hpatchesSeqPrefix" == "" ]; then
     hpatchesSeqPrefix="all"
@@ -40,6 +50,7 @@ fi
 
 dataName="${dataName}${extraSuffix}"
 echo "Using dataName: $dataName"
+
 # Clean up old dataset
 rm -rf datasets/HPatches
 
