@@ -15,7 +15,10 @@ proxyoptConfig="../ProxyOpt/train_configs/v16.2-chroma-HumanTunedInitialHype.yam
 # stage2Checkpoint="/home/boat/proxyISP/ProxyOpt/v16.2-chroma-HumanTunedInitialHype_replicate-s21fe_sunlit_lr0.0005_schedulerPlateauTo0.00001_bs1_ga8_adjust_defaultcolorhuesat/checkpoints/checkpoint_120000.pkl"
 # stage2Checkpoint="/home/boat/proxyISP/ProxyOpt/v16.2-chroma-HumanTunedInitialHype_replicate-s21fe_lowlight_lr0.0005_schedulerPlateauTo0.00001_bs1_ga8_adjust_defaultcolorhuesat_denoise/checkpoints/checkpoint_45000.pkl"
 
-stage2Checkpoint="/home/boat/proxyISP/pytorch-superpoint/logs/CMAES_train_maxstd0.01_csadampfac10.0/cma_es_checkpoints/checkpoint_2800.pkl"
+#cmaes
+# stage2Checkpoint="/home/boat/proxyISP/pytorch-superpoint/logs/CMAES_train_maxstd0.01_csadampfac10.0/cma_es_checkpoints/checkpoint_2800.pkl"
+stage2Checkpoint="/home/boat/proxyISP/pytorch-superpoint/logs/CMAES_train_maxstd0.01_csadampfac10.0/cma_es_checkpoints/checkpoint_2290.pkl"
+# stage2Checkpoint="/home/boat/proxyISP/pytorch-superpoint/logs/CMAES_train_lowlight_maxstd0.01_csadampfac10.0/cma_es_checkpoints/checkpoint_2750.pkl"
 extraSuffix="_HPatchesV4.1"
 gpu_devices="0"
 # stage2Checkpoint="original"

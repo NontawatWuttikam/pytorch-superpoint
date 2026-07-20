@@ -120,10 +120,22 @@ def train_joint(config, output_dir, args):
         initial_solution = train_set.proxy_isp_dataset.get_original_hyp(True, False, add_eps = False)
     print("cma-es initial solution", initial_solution)
     print("initializng cma-es")
-    maxstd = proxyopt_config["cmaes"]["maxstd"]
-    CSA_dampfac = proxyopt_config["cmaes"]["CSA_dampfac"]
 
-    opts = {"CSA_dampfac": CSA_dampfac, 'maxstd': maxstd}
+    opts = {}
+    if "maxstd" in proxyopt_config["cmaes"]:
+        maxstd = proxyopt_config["cmaes"]["maxstd"]
+        opts["maxstd"] = maxstd
+    if  "CSA_dampfac" in proxyopt_config["cmaes"]:
+        CSA_dampfac = proxyopt_config["cmaes"]["CSA_dampfac"]
+        opts["CSA_dampfac"] = CSA_dampfac
+    if "bounds" in proxyopt_config["cmaes"]:
+        bounds = proxyopt_config["cmaes"]["bounds"]
+        if bounds == "zero_to_one":
+            bounds = [0, 1]
+            opts["bounds"] = bounds
+
+    print("opts", opts)
+
     train_agent.es = cma.CMAEvolutionStrategy(initial_solution, 0.5, opts)
 
     # load model initiates the model and load the pretrained model (if any)
