@@ -1,0 +1,198 @@
+================================================================================
+eval_log_dirs 
+ /home/boat/proxyISP/pytorch-superpoint/logs/eval_sl_v16.2-chroma-ISPDefaultInitialHype_original_HPatchesV4.1
+/home/boat/proxyISP/pytorch-superpoint/logs/eval_sl_v16.2-chroma-HumanTunedInitialHype_replicate-s21fe_sunlit_lr0.0005_schedulerPlateauTo0.00001_bs1_ga8_adjust_defaultcolorhuesat_120000_HPatchesV4.1
+/home/boat/proxyISP/pytorch-superpoint/logs/eval_sl_PRETRAINED_SAMEMODELHOMOADAPT_AGGRESSIVEHOMOADAPT_CFANORMALIZE_XHOMOWARP_DETERMHOMOADAPT_train_v16.2-chroma-HumanTunedInitialHype_sunlit_lr0.005_bothLoss_initialHypeHomoAdaptOnly_gradac187_78500_HPatchesV4.1
+/home/boat/proxyISP/pytorch-superpoint/logs/eval_sl_CMAES_train_maxstd0.01_csadampfac10.0_2290_HPatchesV4.1
+================================================================================
+================================================================================
+Loaded evaluations
+================================================================================
+Orig-ISP
+VO-ISP
+FO-ISP (Proxy)
+FO-ISP (CMA-ES)
+
+================================================================================
+Homography Correctness Descriptive Statistics suffix:wl
+================================================================================
+
+Threshold @ 1
+                   mean     std  median  min  max  success_count  total_pairs  success_rate_%
+Orig-ISP         0.2786  0.4483     0.0  0.0  1.0           39.0        140.0         27.8571
+VO-ISP           0.2929  0.4551     0.0  0.0  1.0           41.0        140.0         29.2857
+FO-ISP (Proxy)   0.3071  0.4613     0.0  0.0  1.0           43.0        140.0         30.7143
+FO-ISP (CMA-ES)  0.2857  0.4518     0.0  0.0  1.0           40.0        140.0         28.5714
+
+Threshold @ 3
+                   mean     std  median  min  max  success_count  total_pairs  success_rate_%
+Orig-ISP         0.5071  0.4999     1.0  0.0  1.0           71.0        140.0         50.7143
+VO-ISP           0.5429  0.4982     1.0  0.0  1.0           76.0        140.0         54.2857
+FO-ISP (Proxy)   0.5500  0.4975     1.0  0.0  1.0           77.0        140.0         55.0000
+FO-ISP (CMA-ES)  0.5071  0.4999     1.0  0.0  1.0           71.0        140.0         50.7143
+
+Threshold @ 5
+                   mean     std  median  min  max  success_count  total_pairs  success_rate_%
+Orig-ISP         0.6214  0.4850     1.0  0.0  1.0           87.0        140.0         62.1429
+VO-ISP           0.6357  0.4812     1.0  0.0  1.0           89.0        140.0         63.5714
+FO-ISP (Proxy)   0.6643  0.4722     1.0  0.0  1.0           93.0        140.0         66.4286
+FO-ISP (CMA-ES)  0.6571  0.4747     1.0  0.0  1.0           92.0        140.0         65.7143
+
+Threshold @ 10
+                   mean     std  median  min  max  success_count  total_pairs  success_rate_%
+Orig-ISP         0.7500  0.4330     1.0  0.0  1.0          105.0        140.0         75.0000
+VO-ISP           0.7571  0.4288     1.0  0.0  1.0          106.0        140.0         75.7143
+FO-ISP (Proxy)   0.7929  0.4053     1.0  0.0  1.0          111.0        140.0         79.2857
+FO-ISP (CMA-ES)  0.7571  0.4288     1.0  0.0  1.0          106.0        140.0         75.7143
+
+Threshold @ 20
+                   mean     std  median  min  max  success_count  total_pairs  success_rate_%
+Orig-ISP         0.8071  0.3945     1.0  0.0  1.0          113.0        140.0         80.7143
+VO-ISP           0.8071  0.3945     1.0  0.0  1.0          113.0        140.0         80.7143
+FO-ISP (Proxy)   0.8214  0.3830     1.0  0.0  1.0          115.0        140.0         82.1429
+FO-ISP (CMA-ES)  0.8429  0.3639     1.0  0.0  1.0          118.0        140.0         84.2857
+
+Threshold @ 50
+                   mean     std  median  min  max  success_count  total_pairs  success_rate_%
+Orig-ISP         0.8571  0.3499     1.0  0.0  1.0          120.0        140.0         85.7143
+VO-ISP           0.8714  0.3347     1.0  0.0  1.0          122.0        140.0         87.1429
+FO-ISP (Proxy)   0.9000  0.3000     1.0  0.0  1.0          126.0        140.0         90.0000
+FO-ISP (CMA-ES)  0.8857  0.3182     1.0  0.0  1.0          124.0        140.0         88.5714
+
+================================================================================
+Homography Correctness McNemar Test: wl
+================================================================================
+
+Threshold @ 1
+          model_A          model_B     acc_A     acc_B      diff  A_correct_B_wrong  A_wrong_B_correct   p_value  significant (p < 0.05)
+0        Orig-ISP           VO-ISP  0.278571  0.292857 -0.014286                  8                 10  0.813664                   False
+1        Orig-ISP   FO-ISP (Proxy)  0.278571  0.307143 -0.028571                  7                 11  0.479500                   False
+2        Orig-ISP  FO-ISP (CMA-ES)  0.278571  0.285714 -0.007143                 11                 12  1.000000                   False
+3          VO-ISP   FO-ISP (Proxy)  0.292857  0.307143 -0.014286                  7                  9  0.802587                   False
+4          VO-ISP  FO-ISP (CMA-ES)  0.292857  0.285714  0.007143                  8                  7  1.000000                   False
+5  FO-ISP (Proxy)  FO-ISP (CMA-ES)  0.307143  0.285714  0.021429                 10                  7  0.627626                   False
+
+Threshold @ 3
+          model_A          model_B     acc_A     acc_B      diff  A_correct_B_wrong  A_wrong_B_correct   p_value  significant (p < 0.05)
+0        Orig-ISP           VO-ISP  0.507143  0.542857 -0.035714                 10                 15  0.423711                   False
+1        Orig-ISP   FO-ISP (Proxy)  0.507143  0.550000 -0.042857                 11                 17  0.344704                   False
+2        Orig-ISP  FO-ISP (CMA-ES)  0.507143  0.507143  0.000000                 11                 11  0.831170                   False
+3          VO-ISP   FO-ISP (Proxy)  0.542857  0.550000 -0.007143                 13                 14  1.000000                   False
+4          VO-ISP  FO-ISP (CMA-ES)  0.542857  0.507143  0.035714                 11                  6  0.331975                   False
+5  FO-ISP (Proxy)  FO-ISP (CMA-ES)  0.550000  0.507143  0.042857                 17                 11  0.344704                   False
+
+Threshold @ 5
+          model_A          model_B     acc_A     acc_B      diff  A_correct_B_wrong  A_wrong_B_correct   p_value  significant (p < 0.05)
+0        Orig-ISP           VO-ISP  0.621429  0.635714 -0.014286                  8                 10  0.813664                   False
+1        Orig-ISP   FO-ISP (Proxy)  0.621429  0.664286 -0.042857                  6                 12  0.238593                   False
+2        Orig-ISP  FO-ISP (CMA-ES)  0.621429  0.657143 -0.035714                  7                 12  0.358795                   False
+3          VO-ISP   FO-ISP (Proxy)  0.635714  0.664286 -0.028571                 13                 17  0.583882                   False
+4          VO-ISP  FO-ISP (CMA-ES)  0.635714  0.657143 -0.021429                 12                 15  0.700311                   False
+5  FO-ISP (Proxy)  FO-ISP (CMA-ES)  0.664286  0.657143  0.007143                 13                 12  1.000000                   False
+
+Threshold @ 10
+          model_A          model_B     acc_A     acc_B      diff  A_correct_B_wrong  A_wrong_B_correct   p_value  significant (p < 0.05)
+0        Orig-ISP           VO-ISP  0.750000  0.757143 -0.007143                  4                  5  1.000000                   False
+1        Orig-ISP   FO-ISP (Proxy)  0.750000  0.792857 -0.042857                  2                  8  0.113846                   False
+2        Orig-ISP  FO-ISP (CMA-ES)  0.750000  0.757143 -0.007143                  7                  8  1.000000                   False
+3          VO-ISP   FO-ISP (Proxy)  0.757143  0.792857 -0.035714                  2                  7  0.182422                   False
+4          VO-ISP  FO-ISP (CMA-ES)  0.757143  0.757143  0.000000                  6                  6  0.772830                   False
+5  FO-ISP (Proxy)  FO-ISP (CMA-ES)  0.792857  0.757143  0.035714                  9                  4  0.267257                   False
+
+Threshold @ 20
+          model_A          model_B     acc_A     acc_B      diff  A_correct_B_wrong  A_wrong_B_correct   p_value  significant (p < 0.05)
+0        Orig-ISP           VO-ISP  0.807143  0.807143  0.000000                  3                  3  0.683091                   False
+1        Orig-ISP   FO-ISP (Proxy)  0.807143  0.821429 -0.014286                  3                  5  0.723674                   False
+2        Orig-ISP  FO-ISP (CMA-ES)  0.807143  0.842857 -0.035714                  2                  7  0.182422                   False
+3          VO-ISP   FO-ISP (Proxy)  0.807143  0.821429 -0.014286                  3                  5  0.723674                   False
+4          VO-ISP  FO-ISP (CMA-ES)  0.807143  0.842857 -0.035714                  2                  7  0.182422                   False
+5  FO-ISP (Proxy)  FO-ISP (CMA-ES)  0.821429  0.842857 -0.021429                  4                  7  0.546494                   False
+
+Threshold @ 50
+          model_A          model_B     acc_A     acc_B      diff  A_correct_B_wrong  A_wrong_B_correct   p_value  significant (p < 0.05)
+0        Orig-ISP           VO-ISP  0.857143  0.871429 -0.014286                  1                  3  0.617075                   False
+1        Orig-ISP   FO-ISP (Proxy)  0.857143  0.900000 -0.042857                  1                  7  0.077100                   False
+2        Orig-ISP  FO-ISP (CMA-ES)  0.857143  0.885714 -0.028571                  2                  6  0.288844                   False
+3          VO-ISP   FO-ISP (Proxy)  0.871429  0.900000 -0.028571                  0                  4  0.133614                   False
+4          VO-ISP  FO-ISP (CMA-ES)  0.871429  0.885714 -0.014286                  2                  4  0.683091                   False
+5  FO-ISP (Proxy)  FO-ISP (CMA-ES)  0.900000  0.885714  0.014286                  4                  2  0.683091                   False
+
+================================================================================
+localization_err Descriptive Statistics (Localization) subset: wl
+================================================================================
+                     mean       std    median       min       max      rmse       p95       p90
+Orig-ISP         1.023654  0.252914  1.007145  0.447708  1.583136  1.054435  1.421770  1.371913
+VO-ISP           1.023248  0.252458  1.018326  0.470630  1.554211  1.053931  1.441579  1.357078
+FO-ISP (Proxy)   1.015121  0.259218  1.000132  0.486988  1.550300  1.047695  1.426030  1.370580
+FO-ISP (CMA-ES)  1.015934  0.254466  1.005804  0.460023  1.572332  1.047318  1.417189  1.369130
+
+================================================================================
+localization_err Hypothesis Testing (Localization) subset: wl
+================================================================================
+                A                B    mean A    mean B  mean_diff  wilcoxon_stat  wilcoxon_p    t_stat       t_p  significant
+0        Orig-ISP           VO-ISP  1.023654  1.023248   0.000407         4921.0    0.976768  0.100477  0.920110        False
+1        Orig-ISP   FO-ISP (Proxy)  1.023654  1.015121   0.008533         3541.0    0.003736  2.486408  0.014088         True
+2        Orig-ISP  FO-ISP (CMA-ES)  1.023654  1.015934   0.007720         4134.0    0.095686  1.893386  0.060385        False
+3          VO-ISP   FO-ISP (Proxy)  1.023248  1.015121   0.008127         3410.0    0.001513  2.475933  0.014490         True
+4          VO-ISP  FO-ISP (CMA-ES)  1.023248  1.015934   0.007314         3698.0    0.010081  2.882071  0.004579         True
+5  FO-ISP (Proxy)  FO-ISP (CMA-ES)  1.015121  1.015934  -0.000813         4507.0    0.373320 -0.248670  0.803983        False
+
+================================================================================
+repeatability Descriptive Statistics (repeatability) subset: wl
+================================================================================
+                     mean       std    median       min       max      rmse       p95       p90
+Orig-ISP         0.656290  0.128575  0.680275  0.281818  0.856712  0.668766  0.831342  0.802168
+VO-ISP           0.657822  0.135882  0.685528  0.273171  0.888889  0.671710  0.844354  0.816779
+FO-ISP (Proxy)   0.658009  0.135127  0.680156  0.278826  0.888399  0.671740  0.849167  0.815724
+FO-ISP (CMA-ES)  0.660041  0.135241  0.676861  0.253191  0.901361  0.673754  0.846977  0.827336
+
+================================================================================
+repeatability Hypothesis Testing (Repeatability) subset: wl
+================================================================================
+                A                B    mean A    mean B  mean_diff  wilcoxon_stat  wilcoxon_p    t_stat       t_p  significant
+0        Orig-ISP           VO-ISP  0.656290  0.657822  -0.001532         4528.0    0.397224 -0.700535  0.484764        False
+1        Orig-ISP   FO-ISP (Proxy)  0.656290  0.658009  -0.001718         4736.0    0.678922 -0.794020  0.428538        False
+2        Orig-ISP  FO-ISP (CMA-ES)  0.656290  0.660041  -0.003751         4182.0    0.117279 -1.544893  0.124646        False
+3          VO-ISP   FO-ISP (Proxy)  0.657822  0.658009  -0.000186         4858.0    0.872751 -0.147264  0.883137        False
+4          VO-ISP  FO-ISP (CMA-ES)  0.657822  0.660041  -0.002219         4228.0    0.180479 -1.811225  0.072265        False
+5  FO-ISP (Proxy)  FO-ISP (CMA-ES)  0.658009  0.660041  -0.002032         4452.0    0.385217 -1.369653  0.173004        False
+
+================================================================================
+mAP Descriptive Statistics (mAP) subset: wl
+================================================================================
+                     mean       std    median       min       max      rmse       p95       p90
+Orig-ISP         0.756796  0.234114  0.841226  0.077020  0.992295  0.792180  0.976794  0.970057
+VO-ISP           0.765682  0.224121  0.852807  0.164107  0.991673  0.797809  0.982001  0.970730
+FO-ISP (Proxy)   0.771599  0.222658  0.857848  0.069529  0.991311  0.803082  0.980922  0.971235
+FO-ISP (CMA-ES)  0.767613  0.234327  0.860556  0.055091  0.995159  0.802583  0.984597  0.975635
+
+================================================================================
+mAP Hypothesis Testing (mAP) subset: wl
+================================================================================
+                A                B    mean A    mean B  mean_diff  wilcoxon_stat  wilcoxon_p    t_stat       t_p  significant
+0        Orig-ISP           VO-ISP  0.756796  0.765682  -0.008886         4432.0    0.295433 -1.375291  0.171254        False
+1        Orig-ISP   FO-ISP (Proxy)  0.756796  0.771599  -0.014803         3589.0    0.005114 -2.568079  0.011282         True
+2        Orig-ISP  FO-ISP (CMA-ES)  0.756796  0.767613  -0.010817         3656.0    0.007804 -1.790347  0.075575         True
+3          VO-ISP   FO-ISP (Proxy)  0.765682  0.771599  -0.005917         4695.0    0.617626 -1.040851  0.299752        False
+4          VO-ISP  FO-ISP (CMA-ES)  0.765682  0.767613  -0.001931         4182.0    0.117279 -0.309880  0.757116        False
+5  FO-ISP (Proxy)  FO-ISP (CMA-ES)  0.771599  0.767613   0.003986         4558.0    0.432930  0.626125  0.532260        False
+
+================================================================================
+mscore Descriptive Statistics (mscore) subset: wl
+================================================================================
+                     mean       std    median       min       max      rmse       p95       p90
+Orig-ISP         0.343413  0.237462  0.298348  0.018919  0.835165  0.417517  0.742146  0.703199
+VO-ISP           0.347015  0.239513  0.315018  0.019048  0.842222  0.421646  0.765948  0.719833
+FO-ISP (Proxy)   0.352831  0.240180  0.327232  0.016043  0.805333  0.426821  0.765996  0.719243
+FO-ISP (CMA-ES)  0.348291  0.239243  0.312303  0.016949  0.819974  0.422545  0.759274  0.739723
+
+================================================================================
+mscore Hypothesis Testing (mscore) subset: wl
+================================================================================
+                A                B    mean A    mean B  mean_diff  wilcoxon_stat  wilcoxon_p    t_stat       t_p  significant
+0        Orig-ISP           VO-ISP  0.343413  0.347015  -0.003602         4539.0    0.410105 -1.342491  0.181625        False
+1        Orig-ISP   FO-ISP (Proxy)  0.343413  0.352831  -0.009419         3542.0    0.003761 -2.935303  0.003900         True
+2        Orig-ISP  FO-ISP (CMA-ES)  0.343413  0.348291  -0.004879         3997.0    0.051044 -1.666721  0.097822        False
+3          VO-ISP   FO-ISP (Proxy)  0.347015  0.352831  -0.005817         3711.0    0.010896 -2.177473  0.031133         True
+4          VO-ISP  FO-ISP (CMA-ES)  0.347015  0.348291  -0.001277         4518.0    0.465659 -0.500353  0.617618        False
+5  FO-ISP (Proxy)  FO-ISP (CMA-ES)  0.352831  0.348291   0.004540         4310.0    0.193585  1.820188  0.070882        False
