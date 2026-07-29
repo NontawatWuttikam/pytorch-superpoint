@@ -115,6 +115,7 @@ proxyopt:
     # target_images: /mnt/ssd2tb/boat/thesis/s21fe_dataset/raw_sunlit_flattest_top100
     # target_images: /mnt/ssd2tb/boat/thesis/s21fe_hpatches_v4
     # target_images: /mnt/ssd2tb/boat/thesis/robocat_singleim
+    # target_images: /mnt/ssd2tb/boat/thesis/s21fe_hpatches_v4.1_sl
     # target_images: /mnt/ssd2tb/boat/thesis/s21fe_dataset/sampled/raw/sunlit2024
     # target_images: /mnt/ssd2tb/boat/thesis/s21fe_dataset/raw
     # target_images: /mnt/ssd2tb/boat/thesis/s21fe_dataset/raw_edgeContrastIndex_top100
@@ -140,7 +141,7 @@ proxyopt:
     lr_scheduler_iter: 1
     scheduler: None
     scheduler_param:
-        final_lr: 0.00005
+        final_lr: 0.01
         total_steps: 5000
     grad_ac_step: 187
     loss:
@@ -150,7 +151,7 @@ proxyopt:
         entropy_loss: false # experiment loss for proxyopt
         entropy_loss_beta: 1.0
         # desc_loss_lambda: 1.0
-        desc_loss_lambda: 1.0
+        desc_loss_lambda: 5.0
 
 retrain: False # set true for new model
 reset_iter: True # set true to set the iteration number to 0

@@ -235,7 +235,7 @@ if __name__ == "__main__":
     hpatch_prefix = sys.argv[3]
 
     # Optional: number of processes (defaults to CPU count if not provided)
-    num_processes = 32
+    num_processes = 64
     if len(sys.argv) > 5:
         try:
             num_processes = int(sys.argv[5])

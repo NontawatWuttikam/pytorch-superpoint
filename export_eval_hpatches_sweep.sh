@@ -3,12 +3,15 @@
 # Usage Example:
 # ./sweep_eval.sh 80000 200000 20000
 
-start=75000      # e.g. 80000
-end=90000        # e.g. 200000
-step=200
+start=0
+end=77000
+step=1000
+
+# Skip evaluation if output directory already exists
+skip_existing=true
 
 # proxyopt config path
-proxyoptConfig="../ProxyOpt/train_configs/v16.2-chroma-ISPDefaultInitialHype.yaml"
+proxyoptConfig="../ProxyOpt/train_configs/v16.2-chroma-HumanTunedInitialHype.yaml"
 
 # common settings
 extraSuffix="_HPatchesV4.1"
@@ -17,8 +20,9 @@ PreHPatchesPath="/mnt/ssd2tb/boat/thesis/s21fe_hpatches_v4.1"
 hpatchesSeqPrefix="sl"  # ll, wl, sl
 
 # base directory where checkpoints are located
-checkpoint_base="/home/boat/proxyISP/pytorch-superpoint/logs/PRETRAINED_SAMEMODELHOMOADAPT_AGGRESSIVEHOMOADAPT_CFANORMALIZE_XHOMOWARP_DETERMHOMOADAPT_train_v16.2-chroma-HumanTunedInitialHype_sunlit_lr0.005_bothLoss_initialHypeHomoAdaptOnly_gradac187/proxyopt_checkpoints"
-
+# checkpoint_base="/home/boat/proxyISP/pytorch-superpoint/logs/DESCLAMBDA5.0_PRETRAINED_SAMEMODELHOMOADAPT_AGGRESSIVEHOMOADAPT_CFANORMALIZE_XHOMOWARP_DETERMHOMOADAPT_train_v16.2-chroma-HumanTunedInitialHype_sunlithpatchesv4.1_lr0.01_bothLoss_initialHypeHomoAdaptOnly_gradac32/proxyopt_checkpoints"
+# checkpoint_base="/home/boat/proxyISP/pytorch-superpoint/logs/PRETRAINED_SAMEMODELHOMOADAPT_AGGRESSIVEHOMOADAPT_CFANORMALIZE_XHOMOWARP_DETERMHOMOADAPT_train_v16.2-chroma-HumanTunedInitialHype_sunlit_lr0.005_bothLoss_initialHypeHomoAdaptOnly_gradac32/proxyopt_checkpoints"
+checkpoint_base="/home/boat/proxyISP/pytorch-superpoint/logs/DESCLAMBDA5.0_PRETRAINED_SAMEMODELHOMOADAPT_AGGRESSIVEHOMOADAPT_CFANORMALIZE_XHOMOWARP_DETERMHOMOADAPT_train_v16.2-chroma-HumanTunedInitialHype_sunlit_lr0.005_bothLoss_initialHypeHomoAdaptOnly_gradac187/proxyopt_checkpoints"
 # Conda environments
 env_gen="proxyopt"
 env_eval="py36-sp"
@@ -37,6 +41,13 @@ for ((step_num=${start}; step_num<=${end}; step_num+=${step})); do
 
     parent_dir=$(basename "$(dirname "$checkpoint_base")")
     dataName="eval_${hpatchesSeqPrefix}_${parent_dir}_${step_num}${extraSuffix}"
+    output_dir="logs/${dataName}"
+
+    # Skip if already evaluated
+    if [[ "$skip_existing" == true && -d "$output_dir" ]]; then
+        echo "⏭️  Output already exists: $output_dir — skipping"
+        continue
+    fi
 
     echo "======================================================"
     echo "✨ Evaluating checkpoint: $stage2Checkpoint"
