@@ -2,7 +2,8 @@
 # EXPER=PRETRAINED_train_v16.1_RawEdgeContrastIndexTop100_lr0.0005_descLossOnly_gradac8
 # EXPER=PRETRAINED_SAMEMODELHOMOADAPT_AGGRESSIVEHOMOADAPT_CFANORMALIZE_XHOMOWARP_NONDETERMHOMOADAPT_train_v16.2-chroma-HumanTunedInitialHype_sunlit_lr0.0005_bothLoss_latestHypeHomoAdapt_gradac187
 # EXPER=PRETRAINED_train_v16.1_allset_lr0.0005_descLossOnly_gradac8
-EXPER=CMAES_train_lowlight_maxstd0.01_csadampfac10.0
+# EXPER=CMAES_train_lowlight_maxstd0.01_csadampfac10.0
+EXPER=CMAES_train_sunlit_maxstd0.01
 CONFIG=configs/superpoint_coco_train_heatmap_proxyopt.yaml
 
 GPU_DEVICE="0"

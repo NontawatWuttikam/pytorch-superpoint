@@ -111,7 +111,7 @@ model:
 proxyopt:
     config_path: '/home/boat/proxyISP/ProxyOpt/train_configs/v16.2-chroma-HumanTunedInitialHype.yaml'
     # target_images: /mnt/ssd2tb/boat/thesis/s21fe_dataset/raw/well-lit
-    # target_images: /mnt/ssd2tb/boat/thesis/s21fe_dataset/raw/sunlit
+    target_images: /mnt/ssd2tb/boat/thesis/s21fe_dataset/raw/sunlit
     # target_images: /mnt/ssd2tb/boat/thesis/s21fe_dataset/raw_sunlit_flattest_top100
     # target_images: /mnt/ssd2tb/boat/thesis/s21fe_hpatches_v4
     # target_images: /mnt/ssd2tb/boat/thesis/robocat_singleim
@@ -119,15 +119,16 @@ proxyopt:
     # target_images: /mnt/ssd2tb/boat/thesis/s21fe_dataset/raw
     # target_images: /mnt/ssd2tb/boat/thesis/s21fe_dataset/raw_edgeContrastIndex_top100
     # target_images: /mnt/ssd2tb/boat/thesis/s21fe_dataset/raw_bestFeatureCountThresh0.5_top100
-    target_images: /mnt/ssd2tb/boat/thesis/s21fe_dataset/raw/low-light
+    # target_images: /mnt/ssd2tb/boat/thesis/s21fe_dataset/raw/low-light
     # target_images: /mnt/ssd2tb/boat/thesis/superpoint_dataset/HPatches_s21fe_welllitOnly
     # target_images: /home/boat/proxyISP/data/s21fe_rainbow_chart_replica
     external_homoadapt_image: # for debugging only (assume "external_image_path" contains identical image names as "target_images" with .jpeg extension )
         enable: false # must be false for actual training
         external_image_path: /mnt/ssd2tb/boat/thesis/s21fe_dataset/processed/well-lit
     cmaes:
+        bounds: "zero_to_one"
         maxstd: 0.01
-        CSA_dampfac: 10.0
+        # CSA_dampfac: 10.0
     homoadapt_use_only_initial_hype: false
     homoadapt_deterministic: false
     warped_pair_homography_deterministic: false
